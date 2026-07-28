@@ -1,0 +1,53 @@
+camera_device: "/dev/video2"
+mock_camera: true
+format: "MJPG"
+width: 640
+height: 480
+fps: 20
+top_camera_process_width: 600
+top_camera_process_height: 400
+top_camera_resize_before_bev: false
+
+# Same top-camera calibration and perspective transform as tire_ws.
+bev_enabled: true
+bev_camera_matrix_path: "~/bev_map_calibration/cameraMatrix.npy"
+bev_dist_coeffs_path: "~/bev_map_calibration/distCoeffs.npy"
+bev_src_points:
+  - [63, 103]
+  - [609, 85]
+  - [622, 357]
+  - [69, 376]
+bev_width: 600
+bev_height: 400
+
+parking_detection_roi:
+  - [255, 236]
+  - [355, 236]
+  - [355, 362]
+  - [255, 362]
+parking_roi:
+  - [280, 290]
+  - [330, 290]
+  - [330, 358]
+  - [280, 358]
+parking_rois:
+  -
+    - [280, 290]
+    - [330, 290]
+    - [330, 358]
+    - [280, 358]
+parking_entry_point_inset_ratio: 0.10
+parking_roi_include_ratio: 1.0
+parking_median_samples: 5
+parking_motion_window_sec: 1.0
+parking_stop_jitter_px: 6.0
+parking_move_jitter_px: 10.0
+parking_stop_speed_px_sec: 2.0
+parking_move_speed_px_sec: 5.0
+parking_motion_grace_sec: 0.4
+parking_detection_lost_grace_sec: 0.3
+parking_roi_exit_grace_frames: 3
+parking_stop_seconds: 10.0
+parking_min_stable_frames: 5
+parking_bbox_change_threshold: 0.0
+parking_center_history: 10

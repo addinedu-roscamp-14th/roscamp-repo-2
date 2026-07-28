@@ -1,4 +1,9 @@
 # Byte-compiled / optimized / DLL files
+# ROS 2 workspace artifacts
+/build/
+/install/
+/log/
+
 __pycache__/
 *.py[codz]
 *$py.class

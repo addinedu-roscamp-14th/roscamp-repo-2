@@ -1,0 +1,34 @@
+operation:
+  auto_start: false
+  mock_arms: true
+  mock_vision: false
+  require_arm_key: true
+  reset_required_after_complete: true
+
+delays:
+  after_parking_sec: 1.0
+  after_set_camera_sec: 1.0
+  after_detection_sec: 0.5
+  after_right_help_sec: 1.0
+
+safety:
+  vehicle_motion_monitor_enabled: true
+  emergency_jitter_px: 12.0
+  emergency_speed_px_sec: 6.0
+  emergency_reference_displacement_px: 12.0
+  emergency_hold_sec: 0.35
+  detection_lost_emergency_sec: 1.0
+  send_stop_before_home: true
+  stop_to_home_delay_sec: 0.5
+  home_on_vehicle_motion: true
+  require_manual_reset: true
+
+commands:
+  set_camera: "SET_CAMERA"
+  right_help: "HELP"
+  left_remove_bad_tire: "REMOVE_BAD_TIRE"
+  home: "HOME"
+  stop: "STOP"
+
+timeouts:
+  worker_shutdown_sec: 3.0

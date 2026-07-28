@@ -1,0 +1,13 @@
+mock_vehicle_detector: true
+model_path: "/home/soo/robot_PC/central_ws/models/vehicle_best.pt"
+imgsz: 640
+confidence: 0.4
+device: null
+vehicle_class_names: ["Car_B"]
+vehicle_class_ids: null
+show_window: true
+mock_detections:
+  - class_id: 0
+    class_name: "Car_B"
+    confidence: 0.95
+    bbox: [285.0, 295.0, 325.0, 350.0]
