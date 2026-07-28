@@ -1,0 +1,38 @@
+[
+    {
+      "type": "gripper",
+      "value": 100,
+      "speed": 50,
+      "sleep": 1.0
+    },
+    {
+      "type": "angles",
+      "value": [-27.77, 66.44, 80.68, 32.95, -24.25, 139.65],
+      "speed": 40,
+      "sleep": 2.0
+    },
+    {
+      "type": "angles",
+      "value": [-24.6, 83.49, 30.32, 65.21, -21.53, 137.9],
+      "speed": 40,
+      "sleep": 2.0
+    },
+    {
+      "type": "gripper",
+      "value": 0,
+      "speed": 50,
+      "sleep": 1.0
+    },
+    {
+      "type": "angles",
+      "value": [-29.09, 69.78, 62.75, 58.18, -22.85, 133.76],
+      "speed": 40,
+      "sleep": 2.0
+    },
+    {
+      "type": "angles",
+      "value": [0, 0, 0, 0, 0, 0],
+      "speed": 30,
+      "sleep": 3.0
+    }
+  ]

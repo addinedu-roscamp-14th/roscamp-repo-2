@@ -1,0 +1,20 @@
+[
+  {
+    "type": "angles",
+    "value": [0, 0, 0, 0, 0, 0],
+    "speed": 40,
+    "sleep": 3.0
+  },
+  {
+    "type": "angles",
+    "value": [91.49, 43.41, -3.95, -86.22, 5.0, -41.48],
+    "speed": 30,
+    "sleep": 3.0
+  },
+  {
+    "type": "gripper",
+    "value": 100,
+    "speed": 50,
+    "sleep": 1.0
+  }
+]
