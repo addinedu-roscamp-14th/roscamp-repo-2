@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORE 정비 예약 시스템</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">CORE 정비</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- 좌측 영역 비움 (홈, 예약하기 버튼 삭제) -->
+                <ul class="navbar-nav me-auto">
+                </ul>
+                
+                <ul class="navbar-nav align-items-center">
+                    {% if session.get('admin_logged_in') %}
+                        <!-- 관리자 로그인 상태 -->
+                        <li class="nav-item"><a class="nav-link" href="/admin/dashboard">대시보드</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin/reservations">예약관리</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin/services">서비스관리</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin/workspaces">작업공간관리</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin/logout">로그아웃</a></li>
+                    {% elif session.get('customer_logged_in') %}
+                        <!-- 고객 로그인 상태 -->
+                        <li class="nav-item">
+                            <a href="/logout" class="btn btn-outline-light ms-3 px-4 rounded-pill fw-bold">로그아웃</a>
+                        </li>
+                    {% else %}
+                        <!-- 비로그인 상태: 고객 로그인 화면이 아닐 때만 로그인 버튼 표시 -->
+                        {% if request.endpoint != 'main.customer_login' %}
+                        <li class="nav-item">
+                            <a href="/login" class="btn btn-outline-light ms-3 px-4 rounded-pill fw-bold">로그인</a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-info">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ko.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

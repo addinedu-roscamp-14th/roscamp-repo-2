@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* 1. 프리미엄 브랜드 컬러 및 기본 설정 */
+    :root {
+        --primary-color: #1E3A8A;
+        --secondary-color: #3B82F6;
+        --bg-color: #f8fafc;
+    }
+    body { background-color: var(--bg-color); }
+    
+    /* 2. 섹션 타이틀 설정 */
+    .page-title {
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.05em;
+    }
+
+    /* 3. 좌측 안내 가이드 패널 설정 */
+    .guide-panel {
+        background: linear-gradient(145deg, var(--primary-color), #1e40af);
+        border-radius: 1.5rem;
+        color: white;
+        padding: 2.5rem;
+        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15);
+        height: 100%;
+    }
+    .step-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+    .step-number {
+        background: rgba(255,255,255,0.2);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    /* 4. 캘린더 영역 설정 */
+    .calendar-card {
+        border: none;
+        border-radius: 1.5rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        background: #ffffff;
+        overflow: hidden;
+    }
+    
+    /* 5. 모달 및 폼 스타일 프리미엄화 */
+    .custom-modal .modal-content {
+        border: none;
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+    .custom-modal .modal-header {
+        background-color: var(--primary-color);
+        color: white;
+        border-top-left-radius: 1.5rem;
+        border-top-right-radius: 1.5rem;
+        border-bottom: none;
+        padding: 1.5rem 2rem;
+    }
+    .custom-modal .modal-body {
+        padding: 2rem;
+    }
+    .custom-modal .form-control {
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        transition: all 0.2s;
+    }
+    .custom-modal .form-control:focus {
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background-color: #ffffff;
+    }
+    .custom-modal .form-label {
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* 6. CTA 버튼 디자인 (예약 확정) */
+    .cta-btn {
+        background-color: var(--secondary-color);
+        border: none;
+        border-radius: 999px;
+        padding: 0.75rem 2.5rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        transition: all 0.3s;
+    }
+    .cta-btn:hover {
+        background-color: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+    }
+</style>
+
+<!-- 메인 레이아웃 -->
+<div class="container-fluid px-4 py-5 mx-auto" style="max-width: 1400px;">
+    <!-- 상단 헤더 영역 -->
+    <div class="row mb-5 fade-in">
+        <div class="col-12 text-center mt-4">
+            <h2 class="page-title display-5 mb-2">스마트 정비 예약</h2>
+            <p class="text-secondary fs-5">원하시는 날짜와 시간을 선택해 주세요.</p>
+        </div>
+    </div>
+
+    <!-- 컨텐츠 영역 (2단 레이아웃) -->
+    <div class="row g-4 fade-in">
+        <!-- 좌측 가이드 패널 -->
+        <div class="col-lg-4 col-xl-3 d-none d-lg-block">
+            <div class="guide-panel">
+                <h4 class="fw-bold mb-4">예약 진행 과정</h4>
+                
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">일정 선택</h6>
+                        <p class="small mb-0">우측 캘린더에서 원하시는 방문 일자를 클릭함.</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">정보 입력</h6>
+                        <p class="small mb-0">고객 정보, 차량 번호 및 필요 정비 항목을 기재함.</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">예약 확정</h6>
+                        <p class="small mb-0">내용 검토 후 예약 확정 버튼을 클릭함.</p>
+                    </div>
+                </div>
+
+                <hr class="border-light my-5 opacity-25">
+                <div class="mt-4">
+                    <h6 class="fw-bold">고객센터 안내</h6>
+                    <p class="small mb-0 opacity-75">기타 문의사항은 1588-0000으로 연락 요망.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측 캘린더 영역 -->
+        <div class="col-lg-8 col-xl-9">
+            <div class="calendar-card p-4">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 예약 정보 입력 모달 -->
+<div class="modal fade custom-modal" id="reservationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">차량 정비 예약 신청</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="reservationForm">
+            <input type="hidden" id="startTime" name="startTime">
+            
+            <!-- [추가할 코드] -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">예약 가능 시간</label>
+                <div id="timeSlotsContainer" class="d-flex flex-wrap mt-2"></div>
+            </div>
+            <!-- [추가 끝] -->
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">고객명</label>
+                    <input type="text" class="form-control" id="customerName" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">연락처</label>
+                    <input type="text" class="form-control" id="customerPhone" placeholder="010-0000-0000" required>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">차량번호</label>
+                <input type="text" class="form-control" id="carNumber" placeholder="12가 3456" required>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">서비스 선택 <span class="text-muted fw-normal fs-6 ms-1">(다중 선택 가능)</span></label>
+                <div id="serviceCheckboxes" class="border p-3 rounded-3 bg-white shadow-sm"></div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">요청사항 / 메모</label>
+                <textarea class="form-control" id="memo" rows="3" placeholder="점검이 필요한 부분이나 특이사항 기재 요망."></textarea>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 justify-content-between">
+        <button type="button" class="btn btn-light px-4 rounded-pill fw-bold text-muted" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-primary cta-btn" id="saveReservation">예약 확정하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

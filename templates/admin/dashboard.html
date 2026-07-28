@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="container-fluid px-4 py-4">
+    <!-- 상단 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark">CORE 관리자 대시보드</h2>
+            <p class="text-muted small">현재 시간: <span id="clock"></span> | 마지막 접속: 2026-07-13 14:20</p>
+        </div>
+        <!-- 새 예약 등록 및 종 모양 아이콘 버튼 삭제됨 -->
+    </div>
+
+    <!-- 통계 카드 섹션 -->
+    <div class="row g-3 mb-4">
+        {% set stats = [('오늘 예약', '12', '+2.5%', 'bg-primary'), ('진행 중', '3', '0%', 'bg-warning'), ('이번 달 매출', '450만원', '+12%', 'bg-success')] %}
+        {% for label, val, diff, color in stats %}
+        <div class="col-md-4 col-xl-2">
+            <div class="card p-3 border-0 shadow-sm rounded-4">
+                <small class="text-muted">{{ label }}</small>
+                <h4 class="fw-bold my-2">{{ val }}</h4>
+                <span class="badge {{ color }} bg-opacity-10 text-dark">{{ diff }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <div class="row g-4">
+        <!-- 차트 영역 -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <h5 class="fw-bold mb-3">일별 예약 추이</h5>
+                <canvas id="reserveChart" height="100"></canvas>
+            </div>
+            
+            <!-- 최근 예약 목록 -->
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-3">최근 예약 현황</h5>
+                <table class="table align-middle">
+                    <thead class="text-muted small">
+                        <tr>
+                            <th>고객명</th>
+                            <th>차량번호</th>
+                            <th>시간</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 실제 데이터 연동 및 최신순 정렬 -->
+                        {% set sorted_reservations = reservations | sort(attribute='start_time', reverse=True) %}
+                        {% if sorted_reservations %}
+                            {% for r in sorted_reservations[:10] %}
+                            <tr onclick="window.location.href='/admin/reservations#res-row-{{ r.id }}'" style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='transparent'">
+                                <td class="fw-bold">{{ r.customer_name }}</td>
+                                <td>{{ r.car_number }}</td>
+                                <td class="text-muted">{{ r.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td><span class="badge bg-success">예약완료</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">최근 예약 내역이 없습니다.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 우측 사이드바 -->
+        <div class="col-lg-4">
+            <!-- 관리자 메모 -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-dark text-white">
+                <h5 class="fw-bold mb-3">관리자 메모</h5>
+                <textarea class="form-control bg-transparent text-white border-secondary" rows="4" placeholder="오늘의 업무를 기록하세요..."></textarea>
+            </div>
+
+            <!-- 시스템 상태 -->
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-3">시스템 상태</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex justify-content-between mb-2"><span>서버 상태</span><span class="text-success">● 정상</span></li>
+                    <li class="d-flex justify-content-between mb-2"><span>DB 연결</span><span class="text-success">● 연결됨</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 차트 구현
+    const ctx = document.getElementById('reserveChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['월', '화', '수', '목', '금', '토', '일'],
+            datasets: [{ label: '예약 건수', data: [12, 19, 3, 5, 2, 3, 7], borderColor: '#1E3A8A', tension: 0.4 }]
+        }
+    });
+
+    // 시계 기능
+    setInterval(() => {
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+    }, 1000);
+</script>
+{% endblock %}

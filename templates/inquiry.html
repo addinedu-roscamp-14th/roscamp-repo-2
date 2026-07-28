@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>예약 조회 - CORE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; 
+            background-color: #f8fafc; 
+            color: #0f172a; 
+        }
+        .ios-card { 
+            background: #fff; 
+            border-radius: 20px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03); 
+            padding: 24px; 
+        }
+        .ios-input { 
+            width: 100%; 
+            padding: 16px; 
+            border-radius: 12px; 
+            border: 1px solid #e2e8f0; 
+            background: #f8fafc; 
+            font-size: 16px; 
+            transition: all 0.2s; 
+        }
+        .ios-input:focus { 
+            outline: none; 
+            border-color: #3b82f6; 
+            background: #fff; 
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1); 
+        }
+        .ios-btn { 
+            width: 100%; 
+            padding: 16px; 
+            border-radius: 12px; 
+            background: #1e3a8a; 
+            color: #fff; 
+            font-weight: 600; 
+            font-size: 16px; 
+            text-align: center; 
+            transition: all 0.2s; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .ios-btn:hover:not(:disabled) { background: #1e40af; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,58,138,0.2); }
+        .ios-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .ios-btn-outline {
+            width: 100%; 
+            padding: 16px; 
+            border-radius: 12px; 
+            background: #fff; 
+            color: #ef4444; 
+            border: 1px solid #fee2e2;
+            font-weight: 600; 
+            font-size: 16px; 
+            text-align: center; 
+            transition: all 0.2s;
+        }
+        .ios-btn-outline:hover { background: #fef2f2; border-color: #fca5a5; }
+        
+        .hide { display: none !important; }
+        
+        .animate-skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .fade-scale-out { animation: fadeScaleOut 0.4s forwards cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeScaleOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } }
+        
+        .fade-in { animation: fadeIn 0.5s forwards cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+        
+        .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); animation: fadeIn 0.2s forwards; }
+    </style>
+</head>
+<body class="antialiased pb-20">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100">
+        <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+            <button onclick="location.href='/'" class="p-2 -ml-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            <h1 class="text-lg font-bold">예약 조회</h1>
+            <div class="w-10"></div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 mt-6">
+        <section class="ios-card mb-6" id="searchSection">
+            <h2 class="text-xl font-bold mb-2">예약자 정보 입력</h2>
+            <p class="text-gray-500 text-sm mb-6">아래 항목 중 하나만 입력해도 조회가 가능함.</p>
+            
+            <form id="searchForm" onsubmit="handleSearch(event)">
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">이름</label>
+                        <input type="text" id="searchName" class="ios-input" placeholder="홍길동">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">차량 번호</label>
+                        <input type="text" id="searchCar" class="ios-input" placeholder="12가 3456">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">전화번호</label>
+                        <input type="tel" id="searchPhone" class="ios-input" placeholder="010-0000-0000">
+                    </div>
+                </div>
+                <button type="submit" class="ios-btn bg-[#1E3A8A]">조회하기</button>
+            </form>
+            <p id="errorMsg" class="text-red-500 text-sm mt-3 hide font-medium flex items-center gap-1">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i> 최소 한 가지 항목을 입력해야 함.
+            </p>
+        </section>
+
+        <section id="resultArea" class="hide">
+            
+            <div id="skeleton" class="ios-card space-y-6">
+                <div class="flex justify-between items-center border-b border-gray-100 pb-4">
+                    <div class="h-6 w-24 rounded-md animate-skeleton"></div>
+                    <div class="h-6 w-16 rounded-full animate-skeleton"></div>
+                </div>
+                <div class="space-y-4">
+                    <div class="h-4 w-full rounded animate-skeleton"></div>
+                    <div class="h-4 w-3/4 rounded animate-skeleton"></div>
+                    <div class="h-4 w-5/6 rounded animate-skeleton"></div>
+                </div>
+            </div>
+
+            <div id="emptyState" class="ios-card text-center py-12 hide fade-in">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    <i data-lucide="search-x" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">예약 내역을 찾을 수 없음</h3>
+                <p class="text-gray-500 text-sm mb-6">입력하신 정보와 일치하는 예약이 존재하지 않음.<br>다시 확인 후 검색 요망.</p>
+                <button onclick="resetSearch()" class="ios-btn bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none">다시 검색하기</button>
+            </div>
+
+            <div id="resultCard" class="hide space-y-4 fade-in">
+                <div class="ios-card">
+                    <div class="flex justify-between items-start border-b border-gray-100 pb-4 mb-4">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">예약번호 <span id="resId" class="font-mono text-gray-900"></span></p>
+                            <h3 class="text-xl font-bold flex items-center gap-2">
+                                <span id="resCar"></span> 
+                            </h3>
+                        </div>
+                        <span id="statusBadge" class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">예약 확정</span>
+                    </div>
+
+                    <div class="space-y-4 text-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4"></i> 예약자</span>
+                            <span id="resName" class="font-medium text-gray-900"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i> 연락처</span>
+                            <span id="resPhone" class="font-medium text-gray-900"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4"></i> 예약 일시</span>
+                            <span id="resDate" class="font-medium text-gray-900"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 flex items-center gap-2"><i data-lucide="settings" class="w-4 h-4"></i> 선택 옵션</span>
+                            <span id="resOption" class="font-medium text-gray-900 text-right"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 flex items-center gap-2"><i data-lucide="credit-card" class="w-4 h-4"></i> 결제 상태</span>
+                            <span id="resPayment" class="font-medium text-gray-900">현장 결제</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ios-card bg-gray-50 border border-gray-100 shadow-none">
+                    <h4 class="font-bold text-sm mb-3 flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4 text-[#1E3A8A]"></i> 매장 정보</h4>
+                    <p class="text-sm text-gray-700 mb-1">CORE 오토 정비센터 (의정부점)</p>
+                    <p class="text-xs text-gray-500">경기도 의정부시 평화로 123</p>
+                </div>
+
+                <div class="flex gap-3 mt-6" id="actionButtons">
+                    <button class="ios-btn bg-gray-100 text-gray-800 shadow-none hover:bg-gray-200">매장 문의</button>
+                    <button onclick="showCancelModal()" class="ios-btn-outline">예약 취소</button>
+                </div>
+            </div>
+
+            <div id="cancelCompleteState" class="ios-card text-center py-12 hide fade-in">
+                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">예약이 취소되었습니다</h3>
+                <p class="text-gray-500 text-sm mb-8 leading-relaxed">
+                    예약이 정상적으로 취소되었습니다.<br>(나도 너 같은 썩차 마음에 안들었다ㅋ)<br>새로운 예약이 필요하면 다시 예약을 진행해 주세요 ㅎ.
+                </p>
+                <div class="flex flex-col gap-3">
+                    <button onclick="location.href='/reserve'" class="ios-btn bg-[#1E3A8A] text-white">새 예약하기</button>
+                    <button onclick="location.href='/'" class="ios-btn bg-gray-100 text-gray-800 shadow-none hover:bg-gray-200">홈으로 이동</button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <div id="cancelModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-overlay hide">
+        <div class="bg-white w-[320px] rounded-[20px] p-6 shadow-2xl transform transition-all text-center">
+            <div class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-2">예약을 취소하시겠습니까?</h3>
+            <p class="text-sm text-gray-500 mb-6">취소 후에는 예약을 복구할 수 없습니다.</p>
+            <div class="flex gap-3">
+                <button onclick="closeCancelModal()" class="flex-1 py-3.5 rounded-xl bg-gray-100 font-semibold text-gray-700 hover:bg-gray-200 transition-colors">닫기</button>
+                <button id="confirmCancelBtn" onclick="processCancel()" class="flex-1 py-3.5 rounded-xl bg-red-500 font-semibold text-white hover:bg-red-600 transition-colors flex justify-center items-center gap-2">
+                    <span id="cancelBtnText">예약 취소</span>
+                    <i data-lucide="loader-2" id="cancelSpinner" class="w-4 h-4 animate-spin hide"></i>
+                </button>
+            </div>
+            <p id="cancelErrorMsg" class="text-red-500 text-xs mt-3 hide"></p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        async function handleSearch(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('searchName').value.trim();
+            const car = document.getElementById('searchCar').value.trim();
+            const phone = document.getElementById('searchPhone').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!name && !car && !phone) {
+                errorMsg.classList.remove('hide');
+                return;
+            }
+            errorMsg.classList.add('hide');
+
+            const resultArea = document.getElementById('resultArea');
+            const skeleton = document.getElementById('skeleton');
+            const emptyState = document.getElementById('emptyState');
+            const resultCard = document.getElementById('resultCard');
+            const cancelCompleteState = document.getElementById('cancelCompleteState');
+
+            resultArea.classList.remove('hide');
+            skeleton.classList.remove('hide');
+            emptyState.classList.add('hide');
+            resultCard.classList.add('hide');
+            cancelCompleteState.classList.add('hide');
+            
+            document.getElementById('statusBadge').className = 'px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full';
+            document.getElementById('statusBadge').textContent = '예약 확정';
+            document.getElementById('actionButtons').classList.remove('hide');
+            resultCard.classList.remove('fade-scale-out');
+
+            try {
+                const response = await fetch('/api/reservation/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, car: car, phone: phone })
+                });
+                
+                const result = await response.json();
+                skeleton.classList.add('hide');
+
+                if (result.success) {
+                    document.getElementById('resId').textContent = result.data.id;
+                    document.getElementById('resName').textContent = result.data.name;
+                    document.getElementById('resCar').textContent = result.data.car;
+                    document.getElementById('resPhone').textContent = result.data.phone;
+                    document.getElementById('resDate').textContent = result.data.date;
+                    document.getElementById('resOption').textContent = result.data.options;
+                    
+                    window.currentResId = result.data.raw_id;
+                    resultCard.classList.remove('hide');
+                } else {
+                    emptyState.classList.remove('hide');
+                }
+            } catch (error) {
+                skeleton.classList.add('hide');
+                emptyState.classList.remove('hide');
+            }
+        }
+
+        function resetSearch() {
+            document.getElementById('searchForm').reset();
+            document.getElementById('resultArea').classList.add('hide');
+            document.getElementById('searchName').focus();
+        }
+
+        function showCancelModal() {
+            document.getElementById('cancelModal').classList.remove('hide');
+            document.getElementById('cancelErrorMsg').classList.add('hide');
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancelModal').classList.add('hide');
+        }
+
+        async function processCancel() {
+            const btn = document.getElementById('confirmCancelBtn');
+            const spinner = document.getElementById('cancelSpinner');
+            const btnText = document.getElementById('cancelBtnText');
+            const errorMsg = document.getElementById('cancelErrorMsg');
+
+            btn.disabled = true;
+            btnText.textContent = '처리 중';
+            spinner.classList.remove('hide');
+            errorMsg.classList.add('hide');
+
+            try {
+                const response = await fetch(`/api/reservation/cancel/${window.currentResId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    btn.disabled = false;
+                    btnText.textContent = '예약 취소';
+                    spinner.classList.add('hide');
+                    closeCancelModal();
+
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                    const resultCard = document.getElementById('resultCard');
+                    resultCard.classList.add('fade-scale-out');
+
+                    setTimeout(() => {
+                        resultCard.classList.add('hide');
+                        document.getElementById('cancelCompleteState').classList.remove('hide');
+                        document.getElementById('searchSection').classList.add('hide');
+                    }, 400); 
+                } else {
+                    errorMsg.textContent = '취소 처리 중 오류가 발생함.';
+                    errorMsg.classList.remove('hide');
+                    btn.disabled = false;
+                    btnText.textContent = '예약 취소';
+                    spinner.classList.add('hide');
+                }
+            } catch (error) {
+                errorMsg.textContent = '네트워크 통신 오류가 발생함.';
+                errorMsg.classList.remove('hide');
+                btn.disabled = false;
+                btnText.textContent = '예약 취소';
+                spinner.classList.add('hide');
+            }
+        }
+    </script>
+</body>
+</html>

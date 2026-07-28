@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5 fade-in">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white text-center py-3">
+                <h4 class="mb-0">로그인</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">아이디</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">비밀번호</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-3">로그인</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+/* 기본 폰트 및 배경 설정 */
+body {
+    font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* 페이드 인 애니메이션 */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 카드 호버 효과 */
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+/* 캘린더 컨테이너 스타일 */
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    min-height: 600px;
+}
+
+/* FullCalendar 이벤트 텍스트 색상 강제 지정 (시인성 확보) */
+.fc-event-title {
+    color: #ffffff !important;
+    font-weight: bold;
+}
+.fc-event-time {
+    color: #ffffff !important;
+}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h2 class="fw-bold">작업공간 관리</h2>
+        <button class="btn btn-primary rounded-pill" onclick="openModal()">+ 생성</button>
+    </div>
+
+    <div class="row g-4" id="workspaceList">
+        {% for w in workspaces %}
+        <div class="col-md-4" id="ws-card-{{ w.id }}">
+            <div class="card p-4 rounded-4 shadow-sm h-100">
+                <h5>{{ w.name }}</h5>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="openModal({{ w.id }}, '{{ w.name }}')">수정</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteWs({{ w.id }}, '{{ w.name }}')">삭제</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 모달 -->
+<div class="modal fade" id="wsModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content p-4">
+        <input type="hidden" id="wsId"><input type="text" id="wsName" class="form-control mb-3">
+        <button class="btn btn-primary" onclick="saveWs()">저장</button>
+    </div></div>
+</div>
+
+<script>
+    function openModal(id = '', name = '') {
+        document.getElementById('wsId').value = id;
+        document.getElementById('wsName').value = name;
+        new bootstrap.Modal(document.getElementById('wsModal')).show();
+    }
+
+    async function saveWs() {
+        const id = document.getElementById('wsId').value;
+        const name = document.getElementById('wsName').value;
+        const res = await fetch(id ? `/admin/workspace/update/${id}` : '/admin/workspace/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: name })
+        });
+        if ((await res.json()).success) location.reload();
+    }
+
+    async function deleteWs(id, name) {
+        const reason = prompt(`'${name}' 삭제 사유를 입력하세요.`);
+        if (!reason) return alert('사유 필수');
+        const res = await fetch(`/admin/workspace/delete/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ reason: reason })
+        });
+        if ((await res.json()).success) {
+            document.getElementById('ws-card-' + id).classList.add('fade-out');
+            setTimeout(() => location.reload(), 500);
+        }
+    }
+</script>
+<style>.fade-out { transition: 0.5s; opacity: 0; }</style>
+{% endblock %}

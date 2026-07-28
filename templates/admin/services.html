@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">서비스 항목 관리</h2>
+<div class="row fade-in">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">신규 서비스 등록</div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label>서비스명</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>소요시간 (분 단위)</label>
+                        <input type="number" name="duration" class="form-control" step="5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>캘린더 식별 색상</label>
+                        <input type="color" name="color" class="form-control form-control-color w-100" value="#0d6efd" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">등록하기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-bordered text-center align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>서비스명</th>
+                            <th>소요시간</th>
+                            <th>식별 색상</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in services %}
+                        <tr>
+                            <td>{{ s.id }}</td>
+                            <td class="fw-bold">{{ s.name }}</td>
+                            <td>{{ s.duration }}분</td>
+                            <td><div style="width: 25px; height: 25px; background-color: {{ s.color }}; margin: auto; border-radius: 50%;"></div></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

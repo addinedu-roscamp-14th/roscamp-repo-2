@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* 삭제 모달 및 애니메이션 스타일 */
+    .admin-modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 1050; position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .admin-modal { background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 400px; padding: 24px; }
+    .hide { display: none !important; }
+    
+    /* Fade & Collapse 애니메이션 */
+    .collapse-out { animation: collapseOut 0.5s forwards cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
+    @keyframes collapseOut { 
+        0% { opacity: 1; transform: scale(1); } 
+        50% { opacity: 0; transform: scale(0.95); }
+        100% { opacity: 0; transform: scale(0.95); line-height: 0; padding: 0; height: 0; border: none; display: none; } 
+    }
+
+    /* 토스트 메시지 */
+    .toast-message { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); opacity: 0; background: #1f2937; color: white; padding: 12px 24px; border-radius: 99px; font-weight: 500; transition: all 0.3s ease; z-index: 1060; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px; }
+    .toast-message.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    
+    /* 버튼 커스텀 스타일 */
+    .btn-danger-custom { background-color: #ef4444; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
+    .btn-danger-custom:hover:not(:disabled) { background-color: #dc2626; }
+    .btn-danger-custom:disabled { opacity: 0.7; cursor: not-allowed; }
+    .btn-light-custom { background-color: #f3f4f6; color: #374151; border: none; padding: 12px; border-radius: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
+    .btn-light-custom:hover { background-color: #e5e7eb; }
+</style>
+
+<h2 class="mb-4">예약 관리</h2>
+<div class="card shadow-sm fade-in">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-3">No</th>
+                        <th>예약시간</th>
+                        <th>고객명</th>
+                        <th>연락처</th>
+                        <th>차량번호</th>
+                        <th>작업공간</th>
+                        <th>서비스 항목</th>
+                        <th class="pe-3 text-end">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reservations %}
+                    <tr id="res-row-{{ r.id }}">
+                        <td class="ps-3">{{ r.id }}</td>
+                        <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') }} ~ {{ r.end_time.strftime('%H:%M') }}</td>
+                        <td>{{ r.customer_name }}</td>
+                        <td>{{ r.customer_phone }}</td>
+                        <td>{{ r.car_number }}</td>
+                        <td><span class="badge bg-info text-dark">{{ r.workspace.name }}</span></td>
+                        <td>
+                            {% for s in r.services %}
+                                <span class="badge" style="background-color: {{ s.color }}">{{ s.name }}</span>
+                            {% endfor %}
+                        </td>
+                        <td class="pe-3 text-end">
+                            <div class="d-flex justify-content-end gap-2">
+                                <!-- 기존 a 태그 다운로드에서 버튼 모달 호출로 변경 -->
+                                <button onclick="openPdfPreview({{ r.id }})" class="btn btn-sm btn-outline-dark">작업지시서 PDF</button>
+                                <button onclick="openDeleteModal({{ r.id }}, 'res-row-{{ r.id }}')" class="btn btn-sm btn-outline-danger">예약 삭제</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 삭제 확인 모달 -->
+<div id="deleteModal" class="admin-modal-overlay hide">
+    <div class="admin-modal">
+        <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; color: #111827;">예약을 삭제하시겠습니까?</h3>
+        <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;">삭제된 예약은 복구할 수 없습니다. 삭제 사유를 입력한 후 진행해 주세요.</p>
+        
+        <textarea id="deleteReasonInput" rows="3" style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; background: #f9fafb; margin-bottom: 1rem; outline: none; resize: none;" placeholder="삭제 사유를 입력해 주세요. (필수)"></textarea>
+        
+        <p id="deleteErrorMsg" class="hide" style="color: #ef4444; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">삭제 사유를 반드시 입력해야 함.</p>
+        
+        <div style="display: flex; gap: 0.75rem;">
+            <button onclick="closeDeleteModal()" class="btn-light-custom">취소</button>
+            <button id="confirmDeleteBtn" onclick="executeDelete()" class="btn-danger-custom">
+                <span id="deleteBtnText">삭제하기</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 작업지시서 PDF 미리보기 모달 -->
+<div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="height: 90vh;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">작업지시서 미리보기</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+      </div>
+      <div class="modal-body p-0 h-100">
+        <iframe id="pdfIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 알림 -->
+<div id="toast" class="toast-message">
+    <span id="toastText">예약이 정상적으로 삭제되었습니다.</span>
+</div>
+
+<script>
+    let targetReservationId = null;
+    let targetCardElement = null;
+
+    // 예약 삭제 모달 관련 로직
+    function openDeleteModal(resId, rowId) {
+        targetReservationId = resId;
+        targetCardElement = document.getElementById(rowId);
+        
+        document.getElementById('deleteReasonInput').value = '';
+        document.getElementById('deleteErrorMsg').classList.add('hide');
+        document.getElementById('deleteModal').classList.remove('hide');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hide');
+        targetReservationId = null;
+        targetCardElement = null;
+    }
+
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toastText').textContent = message;
+        
+        toast.style.backgroundColor = isError ? '#ef4444' : '#1f2937';
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    }
+
+    async function executeDelete() {
+        const reasonInput = document.getElementById('deleteReasonInput').value.trim();
+        const errorMsg = document.getElementById('deleteErrorMsg');
+        const btn = document.getElementById('confirmDeleteBtn');
+        const btnText = document.getElementById('deleteBtnText');
+
+        if (!reasonInput) {
+            errorMsg.textContent = '삭제 사유를 반드시 입력해야 함.';
+            errorMsg.classList.remove('hide');
+            return;
+        }
+
+        errorMsg.classList.add('hide');
+        btn.disabled = true;
+        btnText.textContent = '처리 중...';
+
+        try {
+            const response = await fetch(`/admin/reservation/delete/${targetReservationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reasonInput })
+            });
+            
+            const result = await response.json();
+
+            if (result.success) {
+                closeDeleteModal();
+                showToast(result.message);
+                
+                if (targetCardElement) {
+                    targetCardElement.classList.add('collapse-out');
+                    setTimeout(() => { targetCardElement.remove(); }, 500);
+                }
+            } else {
+                errorMsg.textContent = result.message || '삭제 실패함.';
+                errorMsg.classList.remove('hide');
+            }
+        } catch (error) {
+            errorMsg.textContent = '네트워크 오류가 발생함.';
+            errorMsg.classList.remove('hide');
+        } finally {
+            btn.disabled = false;
+            btnText.textContent = '삭제하기';
+        }
+    }
+
+    // PDF 미리보기 모달 연동 로직
+    function openPdfPreview(reservationId) {
+        const iframe = document.getElementById('pdfIframe');
+        iframe.src = `/api/reservation/${reservationId}/pdf`;
+        
+        const previewModal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
+        previewModal.show();
+    }
+
+    // PDF 모달이 닫힐 때 내부 iframe 데이터 초기화
+    document.getElementById('pdfPreviewModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('pdfIframe').src = "";
+    });
+</script>
+{% endblock %}

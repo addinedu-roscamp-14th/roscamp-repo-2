@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5 fade-in">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+            <!-- 관리자 전용 짙은 레드 배경 적용 -->
+            <div class="card-header text-white text-center py-4" style="background-color: #7f1d1d; border-bottom: none;">
+                <h4 class="mb-0 fw-bold">CORE 관리자 로그인</h4>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">아이디</label>
+                        <input type="text" name="username" class="form-control form-control-lg bg-light" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted fw-bold">비밀번호</label>
+                        <input type="password" name="password" class="form-control form-control-lg bg-light" required>
+                    </div>
+                    <button type="submit" class="btn btn-lg w-100 text-white fw-bold" style="background-color: #7f1d1d; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                        로그인
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

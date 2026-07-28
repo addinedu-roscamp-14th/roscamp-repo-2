@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORE 정비 예약 시스템</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A8A',
+                        secondary: '#3B82F6',
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Apple SD Gothic Neo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            background-color: #000; 
+            color: #fff; 
+            margin: 0; 
+            padding: 0; 
+            overflow-x: hidden; 
+        }
+
+        /* 애플 스타일 스크롤 섹션 공통 설정 */
+        .apple-section {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+        .content-section { padding-left: 10%; justify-content: flex-start; }
+
+        /* 배경 이미지 및 오버레이 */
+        .bg-image {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: -2;
+            transform: scale(1.05);
+            transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .bg-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: -1;
+        }
+
+        /* 스크롤 애니메이션 트리거 */
+        .apple-section.is-visible .bg-image { transform: scale(1); }
+
+        /* 텍스트 요소 애니메이션 설정 */
+        .reveal-group { max-width: 700px; z-index: 10; }
+        .reveal-item {
+            opacity: 0;
+            transform: translateY(80px);
+            filter: blur(10px);
+            transition: opacity 1s ease-out, transform 1s ease-out, filter 1s ease-out;
+        }
+        
+        .apple-section.is-visible .reveal-item {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+        }
+
+        .delay-1 { transition-delay: 0.4s; }
+        .delay-2 { transition-delay: 0.8s; }
+
+        /* 폰트 크기 및 가독성 개선 */
+        .section-title { font-size: 4rem !important; margin-bottom: 2rem; font-weight: 700; line-height: 1.2; }
+        .section-list { list-style: none; padding: 0; color: #ffffff !important; font-size: 1.5rem !important; line-height: 1.8; }
+        .section-list li { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.8rem; }
+        
+        .hero-title { font-size: 5rem !important; font-weight: 700; line-height: 1.2; margin-bottom: 2rem; }
+        .hero-subtitle { font-size: 1.6rem !important; color: #d1d5db; margin-bottom: 3rem; }
+
+        .btn-primary-white {
+            display: inline-block;
+            background-color: #fff;
+            color: #000;
+            padding: 1.2rem 3rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            text-decoration: none;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+        .btn-primary-white:hover { transform: scale(1.05); background-color: #f0f0f0; }
+    </style>
+</head>
+<body class="antialiased selection:bg-secondary selection:text-white">
+
+<!-- 내비게이션 바 -->
+    <nav class="fixed w-full z-50 transition-all duration-300 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- 로고 클릭 시 홈 메인 화면(/)으로 이동 -->
+                <a href="/" class="flex-shrink-0 flex items-center cursor-pointer" style="text-decoration: none;">
+                    <span class="text-2xl font-bold text-primary tracking-tighter">CORE</span>
+                </a>
+                <div class="hidden md:flex space-x-8 items-center font-medium text-gray-600">
+                    <a href="/reserve" class="hover:text-secondary transition-colors">예약하기</a>
+                    <a href="/inquiry" class="hover:text-secondary transition-colors">예약 조회</a>
+                    <!-- 관리자 로그인 상태일 때만 작업 현황 노출 -->
+                    {% if session.get('admin_logged_in') %}
+                    <a href="/admin/dashboard" class="hover:text-secondary transition-colors">작업 현황</a>
+                    {% endif %}
+                    <a href="#" class="hover:text-secondary transition-colors">고객센터</a>
+                </div>
+                <div class="hidden md:flex items-center">
+                    <!-- 세션 상태에 따른 로그인/로그아웃 버튼 동적 렌더링 -->
+                    {% if session.get('admin_logged_in') %}
+                        <a href="/admin/logout" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            로그아웃
+                        </a>
+                    {% elif session.get('customer_logged_in') %}
+                        <a href="/logout" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            로그아웃
+                        </a>
+                    {% else %}
+                        <a href="/login" class="bg-primary hover:bg-secondary text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            로그인
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="apple-section relative h-screen flex items-center justify-center text-center">
+        <img src="{{ url_for('static', filename='1.png') }}" class="bg-image" alt="Hero Background">
+        <div class="bg-overlay"></div>
+        
+        <div class="reveal-group relative z-10 px-4 sm:px-6 lg:px-8 w-full max-w-5xl mx-auto mt-16" style="max-width: 1000px;">
+            <h1 class="hero-title reveal-item text-white tracking-tight break-keep">
+                기다림은 줄이고<br>신뢰는 높인 스마트 정비 서비스
+            </h1>
+            <p class="hero-subtitle reveal-item delay-1 text-gray-200 font-light max-w-4xl mx-auto break-keep">
+                24시간 예약부터 작업 완료까지, 더욱 편리한 정비 경험을 제공합니다.
+            </p>
+            <div class="reveal-item delay-2 flex justify-center">
+                <a href="/reserve" class="bg-secondary hover:bg-blue-400 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    지금 예약하기
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 스토리텔링 섹션들 -->
+    <section id="section1" class="apple-section content-section">
+        <img src="{{ url_for('static', filename='2.jpg') }}" alt="스마트폰 예약" class="bg-image">
+        <div class="bg-overlay"></div>
+        <div class="reveal-group">
+            <h2 class="section-title reveal-item">언제든 편리한 예약</h2>
+            <ul class="section-list reveal-item delay-1">
+                <li>24시간 온라인 예약</li>
+                <li>원하는 날짜와 시간 선택</li>
+                <li>간편한 차량 정보 입력</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="apple-section content-section">
+        <img src="{{ url_for('static', filename='3.jpg') }}" alt="정비사 작업" class="bg-image">
+        <div class="bg-overlay"></div>
+        <div class="reveal-group">
+            <h2 class="section-title reveal-item">빠르고 효율적인 서비스</h2>
+            <ul class="section-list reveal-item delay-1">
+                <li>예약 기반으로 대기시간 최소화</li>
+                <li>실시간 작업 현황</li>
+                <li>예상 완료 시간 안내</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="apple-section content-section">
+        <img src="{{ url_for('static', filename='4.jpg') }}" alt="전문 정비사 점검" class="bg-image">
+        <div class="bg-overlay"></div>
+        <div class="reveal-group">
+            <h2 class="section-title reveal-item">안전하고 믿을 수 있는 정비</h2>
+            <ul class="section-list reveal-item delay-1">
+                <li>표준 절차</li>
+                <li>차량별 기준 정비</li>
+                <li>정비 이력 제공</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="apple-section content-section">
+        <img src="{{ url_for('static', filename='5.jpg') }}" alt="태블릿 확인" class="bg-image">
+        <div class="bg-overlay"></div>
+        <div class="reveal-group">
+            <h2 class="section-title reveal-item">투명한 서비스</h2>
+            <ul class="section-list reveal-item delay-1">
+                <li>작업 진행 확인</li>
+                <li>정비 이력 조회</li>
+                <li>품질 검사 결과 제공</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="apple-section content-section">
+        <img src="{{ url_for('static', filename='6.jpg') }}" alt="고객 인도" class="bg-image">
+        <div class="bg-overlay"></div>
+        <div class="reveal-group">
+            <h2 class="section-title reveal-item">고객 중심 서비스</h2>
+            <ul class="section-list reveal-item delay-1">
+                <li>누구나 쉽게 예약</li>
+                <li>직관적인 서비스</li>
+                <li>신속하고 정확한 타이어 교체</li>
+            </ul>
+            <div class="reveal-item delay-2 mt-10">
+                <a href="/reserve" class="btn-primary-white">정비 시작하기</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 푸터 섹션 -->
+    <footer class="bg-[#0a0a0a] text-gray-400 py-16 border-t border-gray-800/50 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+                <div class="col-span-1 md:col-span-2">
+                    <h3 class="text-white text-2xl font-bold mb-4 tracking-tighter">CORE</h3>
+                    <p class="text-sm leading-relaxed break-keep max-w-sm">
+                        기다림은 늘리고 신뢰는 줄인 스마트 정비 서비스.<br>
+                        첨단 시스템과 기술력으로 고객님의 위험한 주행을 약속함.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-6">고객 지원</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="#" class="hover:text-white transition-colors duration-300">공지사항</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors duration-300">자주 묻는 질문 (FAQ)</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors duration-300">서비스 이용약관</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors duration-300">개인정보처리방침</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-6">Contact Us</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="phone" class="w-4 h-4"></i> 1588-0000
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="mail" class="w-4 h-4"></i> support@core-auto.com
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="clock" class="w-4 h-4 mt-0.5"></i> 
+                            <span>연중무휴<br>(03:00 - 05:00 제외)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-16 pt-8 border-t border-gray-800/50 flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
+                <p>&copy; 2026 CORE Auto Service. All rights reserved.</p>
+                <div class="flex gap-4">
+                    <a href="#" class="hover:text-white transition-colors">Instagram</a>
+                    <a href="#" class="hover:text-white transition-colors">YouTube</a>
+                    <a href="#" class="hover:text-white transition-colors">KakaoTalk</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = { root: null, rootMargin: '0px', threshold: 0.3 };
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) { entry.target.classList.add('is-visible'); }
+                    else { entry.target.classList.remove('is-visible'); }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.apple-section').forEach(section => observer.observe(section));
+        });
+
+       // 지정된 버튼(\ 또는 ₩) 입력 시 관리자 로그인 창으로 강제 이동 기능 추가
+        document.addEventListener('keydown', function(event) {
+            if (event.key === '\\' || event.key === '₩') {
+                window.location.href = '/admin/login';
+            }
+        });
+    </script>
+</body>
+</html>
