@@ -1,3 +1,25 @@
+
+## test용 (rpt_pd.py)
+
+0
+ssh pinky@192.168.4.1
+
+1
+source ~/pinky_pro/install/local_setup.bash
+ros2 launch pinky_bringup bringup_robot.launch.xml
+
+2
+source ~/pinky_pro/install/local_setup.bash
+ros2 launch pinky_navigation bringup_launch.xml     map:=/home/pinky/ddd.yaml     use_sim_time:=False
+
+3
+cd ~/pinky_pro
+source ~/pinky_pro/install/local_setup.bash
+ros2 run pinky_goal_pid rpt_pd
+
+
+
+
 ## 실행 방법
 
 0. SSH 접속 및 환경 설정
