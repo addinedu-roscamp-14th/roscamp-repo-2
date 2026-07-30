@@ -14,7 +14,6 @@ ros2 launch pinky_navigation bringup_launch.xml     map:=/home/pinky/ddd.yaml   
 
 
 cd ~/pinky_pro
-source ~/pinky_pro/install/local_setup.bash
 ros2 run pinky_goal_pid rpt_pd
 
 
