@@ -1,21 +1,24 @@
 
 ## test용 (rpt_pd.py)
 
-
+```bash
 ssh pinky@192.168.4.1
-
-
 source ~/pinky_pro/install/local_setup.bash
+```
+
+```bash
 ros2 launch pinky_bringup bringup_robot.launch.xml
+```
 
-
-source ~/pinky_pro/install/local_setup.bash
+```bash
 ros2 launch pinky_navigation bringup_launch.xml     map:=/home/pinky/ddd.yaml     use_sim_time:=False
 
+```
 
+```bash
 cd ~/pinky_pro
 ros2 run pinky_goal_pid rpt_pd
-
+```
 
 
 
