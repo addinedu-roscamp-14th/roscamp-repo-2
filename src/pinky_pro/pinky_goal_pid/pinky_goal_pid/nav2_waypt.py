@@ -12,6 +12,18 @@
   3. 도킹 완료 후 WAIT(타이어 교체 대기)
   4. 다음 스테이션으로 반복, 마지막 스테이션 이후 처음으로 돌아가 루프(한 바퀴)
 
+[장애물 정지-재개 추가]
+도킹 구간(2번)은 Nav2 관할 밖이라 원래 라이다를 전혀 안 봤음. /scan을 구독해서
+도킹 중 현재 이동 방향(dock_control.py가 알려줌) 기준 콘 안의 최소거리를 계산,
+DockingStateMachine.step()에 넘겨서 막히면 정지-재개하도록 함.
+
+[라이다 마운트 오프셋 보정]
+tf_static 확인 결과 rplidar_link가 base_link 기준 z축 180도 회전되어 마운트됨
+(rplidar_mount->rplidar_link 쿼터니언 z=1, w≈0). 즉 라이다 좌표계 0도가 로봇
+후방을 가리킴. get_move_direction_relative()가 주는 "로봇 기준 각도"를 라이다
+좌표계로 변환할 때 LIDAR_YAW_OFFSET(180도)을 더해줘야 함. 이걸 빠뜨렸을 때
+로봇 정면 장애물을 계속 못 잡고 그대로 밀고 가는 문제가 실측으로 확인됨.
+
 TODO:
   - is_wait_condition을 고정시간 대신 Jetcobot 완료 신호(토픽/서비스)로 교체할 경우
     WAITING 분기의 조건문만 바꾸면 됨
@@ -20,13 +32,15 @@ import math
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy, qos_profile_sensor_data
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from nav2_msgs.action import NavigateToPose
 
 from pinky_goal_pid.dock_control import DockingStateMachine
+import numpy as np
 
 
 # goal_pid.py에서 쓰던 값 그대로. 필요시 rqt_reconfigure로 붙여서 튜닝해도 됨.
@@ -37,7 +51,7 @@ DOCKING_PARAMS = {
     'max_lin': 0.08,
     'max_ang': 0.29,
     'goal_tolerance': 0.01,
-    'yaw_tolerance': 0.018,
+    'yaw_tolerance': 0.015,
     'min_ang_vel': 0.1,
     'min_lin_vel': 0.008,
     'move_yaw_correction_gain': 0.3,
@@ -46,7 +60,23 @@ DOCKING_PARAMS = {
     'move_start_yaw_threshold_deg': 2.0,
     'kp_angle_diagonal': 0.5,
     'max_ang_diagonal': 0.2,
+    # 상태 전환(MOVE<->ROTATE, Nav2->도킹 등) 시 속도 급변 방지용 변화율 제한.
+    # max_lin=0.08 기준 0→최대속도 약 0.4초, max_ang=0.29 기준 약 0.3초에 도달하도록 설정.
+    # 너무 느리게 느껴지면 값을 키우고, 여전히 튀는 느낌이면 낮춰서 튜닝.
+    'max_lin_accel': 0.2,   # m/s^2
+    'max_ang_accel': 1.0,   # rad/s^2
+    # 도킹 중 이동 방향 전방 최소거리가 이보다 가까우면 정지 (튜닝 필요, 실측 후 조정)
+    'docking_obstacle_stop_dist': 0.15,
 }
+
+# 도킹 중 장애물 체크용 라이다 콘 반각(rad). 이동 방향 기준 ±이 값 안에서 최소거리 계산.
+# 튜닝 필요: 로봇 폭/속도에 비해 너무 좁으면 옆으로 살짝 비껴간 장애물을 못 잡고,
+# 너무 넓으면 진행 방향과 무관한 물체에도 과민 반응함.
+OBSTACLE_CONE_HALF_ANGLE = math.radians(25)
+
+# rplidar_link가 base_link 기준 z축 180도 회전되어 마운트됨 (tf_static으로 확인).
+# 로봇 기준 각도 -> 라이다 좌표계 각도 변환 시 이 값을 더해야 함.
+LIDAR_YAW_OFFSET = math.pi
 
 # Nav2 목표 전송 관련 타이밍
 STARTUP_DELAY_SEC = 3.0     # 노드 시작 후 첫 목표 전송까지 대기 (Nav2 lifecycle 안정화 시간)
@@ -54,7 +84,7 @@ GOAL_RETRY_DELAY_SEC = 1.0  # 목표 거부/서버 미응답 시 재시도 간�
 
 # Nav2 주행 중 approach_pose까지 이 거리(m) 안으로 들어오면 도킹으로 조기 전환.
 # 정밀 정차가 필요한 스테이션(docking_waypoints가 있는 경우)에만 적용됨.
-CAPTURE_RADIUS = 0.10
+CAPTURE_RADIUS = 0.01
 
 
 class Station:
@@ -86,6 +116,10 @@ class WaypointManager(Node):
             Odometry, '/odom', self.odom_callback, 10)
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
+        self.latest_scan = None
+        self.sub_scan = self.create_subscription(
+            LaserScan, '/scan', self.scan_callback, qos_profile_sensor_data)
+
         self.nav2_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
 
         self.current_x = None
@@ -95,45 +129,43 @@ class WaypointManager(Node):
         self.current_ang_vel = 0.0
 
         self.stations = [
-            Station('approach_tire_stop_1', approach_pose=(1.488, 0.515, 3.138),
+            Station('approach_tire_stop_1', approach_pose=(1.488, 0.335, 3.138),
                     docking_waypoints=[
-                        (1.488, 0.515, 3.138, 'MOVE_DIAGONAL'),
-                        (1.488, 0.515, -1.572, 'ROTATE'),
+                        (1.488, 0.335, -1.572, 'ROTATE'),
+                        (1.488, 0.485, -1.572, 'MOVE_BACKWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_2', approach_pose=(1.488, 0.515, -1.572),
+            Station('approach_tire_stop_2', approach_pose=(1.488, 0.485, 3.138),
                     docking_waypoints=[
-                        (1.488, 0.515, 3.138, 'ROTATE'),
-                        (1.085, 0.515, 3.138, 'MOVE_FORWARD'),
+                        (1.488, 0.485, 3.135, 'ROTATE'),
+                        (1.085, 0.485, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_3', approach_pose=(0.303, 0.472, 3.138),
+            Station('approach_tire_stop_3', approach_pose=(0.492, 0.443, -2.831),
                     docking_waypoints=[
-                        (0.303, 0.468, 3.138, 'MOVE_FORWARD'),
+                        (0.303, 0.473, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_4', approach_pose=(0.303, 0.468, 3.138),
+            Station('approach_tire_stop_4', approach_pose=(0.303, 0.473, 3.138),
                     docking_waypoints=[
-                        (0.153, 0.468, 3.138, 'MOVE_FORWARD'),
-                        (0.143, 0.454, -1.567, 'ROTATE'),
-                        (0.133, 0.035, -1.567, 'MOVE_FORWARD'),
-                        # (0.155, 0.022, -0.003, 'ROTATE'),
-                        # (0.791, 0.035, -0.003, 'MOVE_FORWARD'),
-
-                        # (1.083, 0.293, 0.652, 'MOVE_DIAGONAL'),
-                        # (1.323, 0.097, -0.658, 'MOVE_DIAGONAL'),
-
-                        # (1.332, 0.056, 3.138, 'ROTATE'),
-                        # (1.574, 0.057, 3.138,'MOVE_BACKWARD'),
+                        (0.143, 0.473, 3.135, 'MOVE_FORWARD'),
+                        (0.143, 0.465, -1.565, 'ROTATE'),
+                        (0.143, 0.035, -1.565, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=0.0),
+            # Station('approach_tire_stop_test', approach_pose=(0.143, 0.035, -2.831),
+                    # docking_waypoints=[
+                        # (0.143, 0.035, -1.566, 'MOVE_FORWARD'),
+                    # ],
+                    # wait_seconds=3.0),
+            Station('return_to_start_via', approach_pose=(1.11, 0.18, -1.565), docking_waypoints=None, wait_seconds=0.0),
 
-            Station('return_to_start', approach_pose=(1.5625, 0.081, -3.138),
+            Station('return_to_start', approach_pose=(1.572, 0.061, 0.222),
                     docking_waypoints=[
-                        (1.5625, 0.071, -3.138, 'MOVE_DIAGONAL'),
-                        (1.5425, 0.081, -3.138, 'ROTATE'),
+                        (1.552, 0.081, -3.138, 'MOVE_DIAGONAL'),
+                        (1.552, 0.081, -3.138, 'ROTATE'),
                     ],
-                    wait_seconds=1.0),
+                    wait_seconds=0.0),
         ]
 
         self.station_index = 0
@@ -151,7 +183,7 @@ class WaypointManager(Node):
         self.declare_parameter('loop_mode', True)
         self.loop_mode = self.get_parameter('loop_mode').value
 
-        self.timer = self.create_timer(0.05, self.control_loop)
+        self.timer = self.create_timer(0.1, self.control_loop)   # 20Hz -> 10Hz, CPU 부담 완화
 
         # Nav2 lifecycle(bt_navigator 등)이 active 상태로 안정화될 시간을 벌어준 뒤 시작.
         # wait_for_server는 액션 서버 '존재'만 확인하지 '목표 처리 준비'는 보장 안 하므로,
@@ -186,6 +218,29 @@ class WaypointManager(Node):
     def odom_callback(self, msg):
         self.current_lin_vel = msg.twist.twist.linear.x
         self.current_ang_vel = msg.twist.twist.angular.z
+
+    def scan_callback(self, msg):
+        self.latest_scan = msg
+
+    @staticmethod
+    def _min_range_in_cone(scan, center_angle, half_angle):
+        """스캔에서 center_angle(라이다 좌표계 기준, rad) ± half_angle 콘 안의
+        최소 유효거리 반환. 유효 range 없으면 None.
+        numpy 벡터화 버전 (기존 파이썬 for문 대비 CPU 부담 완화, load average
+        과부하 확인 후 적용)."""
+        ranges = np.asarray(scan.ranges)
+        n = len(ranges)
+        if n == 0:
+            return None
+        angles = scan.angle_min + np.arange(n) * scan.angle_increment
+
+        valid = (ranges >= scan.range_min) & (ranges <= scan.range_max)
+        diff = np.arctan2(np.sin(angles - center_angle), np.cos(angles - center_angle))
+        in_cone = valid & (np.abs(diff) <= half_angle)
+
+        if not np.any(in_cone):
+            return None
+        return float(np.min(ranges[in_cone]))
 
     # ---------- Nav2 구간 ----------
     def send_next_nav2_goal(self):
@@ -292,9 +347,28 @@ class WaypointManager(Node):
             return
 
         elif self.mode == 'DOCKING':
+            min_obstacle_dist = None
+            if self.latest_scan is not None:
+                rel_angle = self.docking_sm.get_move_direction_relative(
+                    self.current_x, self.current_y, self.current_yaw)
+                if rel_angle is not None:
+                    # 로봇 기준 각도(rel_angle)를 라이다 좌표계 각도로 변환.
+                    # rplidar_link가 base_link 대비 180도 회전 마운트되어 있어서
+                    # LIDAR_YAW_OFFSET(pi)을 더한 뒤 -pi~pi로 정규화한다.
+                    laser_angle = math.atan2(
+                        math.sin(rel_angle + LIDAR_YAW_OFFSET),
+                        math.cos(rel_angle + LIDAR_YAW_OFFSET))
+                    min_obstacle_dist = self._min_range_in_cone(
+                        self.latest_scan, laser_angle, OBSTACLE_CONE_HALF_ANGLE)
+                    # self.get_logger().info(
+                        # f'[DEBUG] rel_angle={math.degrees(rel_angle):.1f}도 '
+                        # f'laser_angle={math.degrees(laser_angle):.1f}도 '
+                        # f'min_dist={min_obstacle_dist}')
+
             cmd, done = self.docking_sm.step(
                 self.current_x, self.current_y, self.current_yaw,
-                self.current_lin_vel, self.current_ang_vel)
+                self.current_lin_vel, self.current_ang_vel,
+                min_obstacle_dist=min_obstacle_dist)
             self.cmd_pub.publish(cmd)
             if done:
                 self.cmd_pub.publish(Twist())
