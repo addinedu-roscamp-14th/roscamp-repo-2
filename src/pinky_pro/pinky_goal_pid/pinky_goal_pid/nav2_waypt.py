@@ -129,43 +129,43 @@ class WaypointManager(Node):
         self.current_ang_vel = 0.0
 
         self.stations = [
-            Station('approach_tire_stop_1', approach_pose=(1.508, 0.335, 3.138),
+            Station('approach_tire_stop_1', approach_pose=(1.508, 0.335, 3.135),
                     docking_waypoints=[
-                        (1.508, 0.335, -1.572, 'ROTATE'),
-                        (1.508, 0.475, -1.572, 'MOVE_BACKWARD'),
+                        (1.508, 0.335, -1.569, 'ROTATE'),
+                        (1.508, 0.485, -1.569, 'MOVE_BACKWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_2', approach_pose=(1.508, 0.475, 3.138),
+            Station('approach_tire_stop_2', approach_pose=(1.508, 0.485, -1.569),
                     docking_waypoints=[
-                        (1.508, 0.475, 3.135, 'ROTATE'),
-                        (1.085, 0.475, 3.135, 'MOVE_FORWARD'),
+                        (1.508, 0.485, 3.135, 'ROTATE'),
+                        (1.098, 0.485, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_3', approach_pose=(0.492, 0.433, -2.631),
+            Station('approach_tire_stop_3', approach_pose=(0.492, 0.463, -2.631),
                     docking_waypoints=[
-                        (0.300, 0.458, 3.135, 'MOVE_FORWARD'),
+                        (0.298, 0.463, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=3.0),
-            Station('approach_tire_stop_4', approach_pose=(0.303, 0.473, 3.138),
+            Station('approach_tire_stop_4', approach_pose=(0.298, 0.463, 3.138),
                     docking_waypoints=[
-                        (0.143, 0.473, 3.135, 'MOVE_FORWARD'),
-                        (0.143, 0.465, -1.565, 'ROTATE'),
-                        (0.143, 0.035, -1.565, 'MOVE_FORWARD'),
+                        (0.143, 0.463, 3.135, 'MOVE_FORWARD'),
+                        (0.143, 0.465, -1.569, 'ROTATE'),
+                        (0.143, 0.035, -1.569, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=0.0),
             # Station('approach_tire_stop_test', approach_pose=(0.143, 0.035, -2.831),
                     # docking_waypoints=[
-                        # (0.143, 0.035, -1.566, 'MOVE_FORWARD'),
+                        # (0.143, 0.035, -1.565, 'MOVE_FORWARD'),
                     # ],
                     # wait_seconds=3.0),
-            Station('return_to_start_via', approach_pose=(1.11, 0.18, 0.222), docking_waypoints=None, wait_seconds=0.0),
+            Station('return_to_start_via', approach_pose=(1.111, 0.222, 0.111), docking_waypoints=None, wait_seconds=0.0),
 
             Station('return_to_start', approach_pose=(1.592, 0.061, 0.222),
                     docking_waypoints=[
-                        (1.572, 0.081, -3.138, 'MOVE_DIAGONAL'),
-                        (1.572, 0.081, -3.138, 'ROTATE'),
+                        (1.582, 0.081, -3.135, 'MOVE_DIAGONAL'),
+                        (1.582, 0.081, -3.135, 'ROTATE'),
                     ],
-                    wait_seconds=0.0),
+                    wait_seconds=3.0),
         ]
 
         self.station_index = 0
@@ -176,6 +176,7 @@ class WaypointManager(Node):
         # Nav2 조기 취소/전환 관련 상태
         self.current_goal_handle = None
         self.docking_triggered_early = False
+        self._goal_seq = 0
 
         # 재시도/재전송용 1회성 타이머 핸들. 여러 개 쌓이지 않도록 항상 취소 후 재생성.
         self._retry_timer = None
@@ -263,6 +264,8 @@ class WaypointManager(Node):
         self.mode = 'NAV2'
         self.current_goal_handle = None
         self.docking_triggered_early = False
+        self._goal_seq += 1
+        my_seq = self._goal_seq
 
         if not self.nav2_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
@@ -271,9 +274,12 @@ class WaypointManager(Node):
             return
 
         send_future = self.nav2_client.send_goal_async(goal_msg)
-        send_future.add_done_callback(self.nav2_goal_response_callback)
+        send_future.add_done_callback(
+            lambda future, seq=my_seq: self.nav2_goal_response_callback(future, seq))
 
-    def nav2_goal_response_callback(self, future):
+    def nav2_goal_response_callback(self, future, seq):
+        if seq != self._goal_seq:
+            return
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().warn(
@@ -282,14 +288,17 @@ class WaypointManager(Node):
             return
         self.current_goal_handle = goal_handle
         result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.nav2_result_callback)
+        result_future.add_done_callback(
+            lambda future, seq=seq: self.nav2_result_callback(future, seq))
 
-    def nav2_result_callback(self, future):
+    def nav2_result_callback(self, future, seq):
+        if seq != self._goal_seq:
+            return
+        if self.docking_triggered_early:
+            return
         # 이미 capture radius 진입으로 도킹으로 조기 전환된 경우, 뒤늦게 도착하는
         # (취소됐거나 정상 완료된) Nav2 결과 콜백은 무시한다. 안 그러면 이미 DOCKING
         # 모드로 넘어간 뒤에 advance_to_next_station이 다시 불려서 스테이션이 씹힐 수 있음.
-        if self.docking_triggered_early:
-            return
 
         station = self.stations[self.station_index]
         self.get_logger().info(f'[{station.name}] Nav2 도착 완료')
@@ -306,6 +315,7 @@ class WaypointManager(Node):
         """NAV2 주행 중 approach_pose까지 CAPTURE_RADIUS 안에 들어왔을 때 호출.
         Nav2 목표를 취소하고 즉시 도킹 상태 머신으로 전환한다."""
         self.docking_triggered_early = True
+        self._goal_seq += 1
 
         if self.current_goal_handle is not None:
             self.current_goal_handle.cancel_goal_async()
