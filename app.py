@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from flask import Flask, render_template, request, jsonify, session
 from config import Config
 from models import db, Admin, Service, Workspace, Reservation, DeletedReservation
@@ -115,4 +117,14 @@ def delete_workspace(ws_id):
     return jsonify({'success': True})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    fastapi_process = None
+    try:
+        # main.py 서브 프로세스 실행
+        fastapi_process = subprocess.Popen([sys.executable, "main.py"])
+        # Flask 서버 실행
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except KeyboardInterrupt:
+        # 종료 시 서브 프로세스 종료 처리
+        if fastapi_process:
+            fastapi_process.terminate()
+            fastapi_process.wait()
