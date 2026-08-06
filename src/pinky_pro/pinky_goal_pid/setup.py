@@ -29,6 +29,7 @@ setup(
         'goal_pid_curve = pinky_goal_pid.goal_pid_curve:main',
         'rpt_pd = pinky_goal_pid.rpt_pd:main',
         'nav2_waypt = pinky_goal_pid.nav2_waypt:main',
+        'nav2_diagonal = pinky_goal_pid.nav2_diagonal:main',
 
     ],
 },
