@@ -24,6 +24,15 @@ tf_static 확인 결과 rplidar_link가 base_link 기준 z축 180도 회전되�
 좌표계로 변환할 때 LIDAR_YAW_OFFSET(180도)을 더해줘야 함. 이걸 빠뜨렸을 때
 로봇 정면 장애물을 계속 못 잡고 그대로 밀고 가는 문제가 실측으로 확인됨.
 
+[Nav2 목표 실패 처리 추가]
+기존엔 nav2_result_callback이 goal_handle의 결과 status를 확인하지 않고
+콜백이 오기만 하면 무조건 "도착 완료"로 처리했음. 그래서 planner 실패/충돌 등으로
+실제로는 approach_pose에 도달 못 했는데도 도킹 상태 머신이 그 자리를 기준으로
+상대 이동을 시작해버려 좌표가 틀어지는 문제가 있었음.
+이제 result.status를 확인해서 STATUS_SUCCEEDED가 아니면 도킹으로 넘어가지 않고
+NAV2_MAX_RETRIES 횟수까지 같은 목표를 재시도하고, 그래도 안 되면 ERROR 모드로
+정지함 (무한 재시도로 코스트맵이 구조적으로 막힌 경우에 계속 실패만 반복하는 것 방지).
+
 TODO:
   - is_wait_condition을 고정시간 대신 Jetcobot 완료 신호(토픽/서비스)로 교체할 경우
     WAITING 분기의 조건문만 바꾸면 됨
@@ -38,6 +47,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from nav2_msgs.action import NavigateToPose
+from action_msgs.msg import GoalStatus
 
 from pinky_goal_pid.dock_control import DockingStateMachine
 import numpy as np
@@ -80,11 +90,15 @@ LIDAR_YAW_OFFSET = math.pi
 
 # Nav2 목표 전송 관련 타이밍
 STARTUP_DELAY_SEC = 3.0     # 노드 시작 후 첫 목표 전송까지 대기 (Nav2 lifecycle 안정화 시간)
-GOAL_RETRY_DELAY_SEC = 1.0  # 목표 거부/서버 미응답 시 재시도 간격
+GOAL_RETRY_DELAY_SEC = 1.0  # 목표 거부/서버 미응답/실패 시 재시도 간격
 
 # Nav2 주행 중 approach_pose까지 이 거리(m) 안으로 들어오면 도킹으로 조기 전환.
 # 정밀 정차가 필요한 스테이션(docking_waypoints가 있는 경우)에만 적용됨.
 CAPTURE_RADIUS = 0.01
+
+# Nav2 목표 실패(planning 실패, collision 등) 시 재시도 최대 횟수.
+# 이 횟수 넘으면 재시도 포기하고 ERROR 모드로 정지.
+NAV2_MAX_RETRIES = 3
 
 
 class Station:
@@ -132,25 +146,25 @@ class WaypointManager(Node):
             Station('approach_tire_stop_1', approach_pose=(1.508, 0.335, 3.135),
                     docking_waypoints=[
                         (1.508, 0.335, -1.569, 'ROTATE'),
-                        (1.508, 0.485, -1.569, 'MOVE_BACKWARD'),
+                        (1.508, 0.488, -1.569, 'MOVE_BACKWARD'),
                     ],
-                    wait_seconds=3.0),
-            Station('approach_tire_stop_2', approach_pose=(1.508, 0.485, -1.569),
+                    wait_seconds=4.0),
+            Station('approach_tire_stop_2', approach_pose=(1.508, 0.488, -1.569),
                     docking_waypoints=[
-                        (1.508, 0.485, 3.135, 'ROTATE'),
-                        (1.098, 0.485, 3.135, 'MOVE_FORWARD'),
+                        (1.508, 0.488, 3.135, 'ROTATE'),
+                        (1.098, 0.488, 3.135, 'MOVE_FORWARD'),
                     ],
-                    wait_seconds=3.0),
+                    wait_seconds=4.0),
             Station('approach_tire_stop_3', approach_pose=(0.492, 0.463, -2.631),
                     docking_waypoints=[
-                        (0.298, 0.463, 3.135, 'MOVE_FORWARD'),
+                        (0.302, 0.463, 3.135, 'MOVE_FORWARD'),
                     ],
-                    wait_seconds=3.0),
-            Station('approach_tire_stop_4', approach_pose=(0.298, 0.463, 3.138),
+                    wait_seconds=4.0),
+            Station('approach_tire_stop_4', approach_pose=(0.302, 0.463, 3.135),
                     docking_waypoints=[
-                        (0.143, 0.463, 3.135, 'MOVE_FORWARD'),
-                        (0.143, 0.465, -1.569, 'ROTATE'),
-                        (0.143, 0.035, -1.569, 'MOVE_FORWARD'),
+                        (0.131, 0.463, 3.135, 'MOVE_FORWARD'),
+                        (0.131, 0.463, -1.569, 'ROTATE'),
+                        (0.131, 0.035, -1.569, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=0.0),
             # Station('approach_tire_stop_test', approach_pose=(0.143, 0.035, -2.831),
@@ -160,12 +174,12 @@ class WaypointManager(Node):
                     # wait_seconds=3.0),
             Station('return_to_start_via', approach_pose=(1.111, 0.222, 0.111), docking_waypoints=None, wait_seconds=0.0),
 
-            Station('return_to_start', approach_pose=(1.592, 0.061, 0.222),
+            Station('return_to_start', approach_pose=(1.592, 0.081, 0.222),
                     docking_waypoints=[
-                        (1.582, 0.081, -3.135, 'MOVE_DIAGONAL'),
-                        (1.582, 0.081, -3.135, 'ROTATE'),
+                        (1.598, 0.081, -3.135, 'MOVE_DIAGONAL'),
+                        (1.598, 0.081, -3.135, 'ROTATE'),
                     ],
-                    wait_seconds=3.0),
+                    wait_seconds=4.0),
         ]
 
         self.station_index = 0
@@ -177,6 +191,7 @@ class WaypointManager(Node):
         self.current_goal_handle = None
         self.docking_triggered_early = False
         self._goal_seq = 0
+        self._nav2_fail_count = 0   # 현재 스테이션에 대한 연속 Nav2 실패 횟수
 
         # 재시도/재전송용 1회성 타이머 핸들. 여러 개 쌓이지 않도록 항상 취소 후 재생성.
         self._retry_timer = None
@@ -245,6 +260,12 @@ class WaypointManager(Node):
 
     # ---------- Nav2 구간 ----------
     def send_next_nav2_goal(self):
+        """새 스테이션에 대한 목표 전송 시작점. 실패 카운터를 리셋한 뒤
+        실제 전송은 _send_nav2_goal_internal()에 위임한다."""
+        self._nav2_fail_count = 0
+        self._send_nav2_goal_internal()
+
+    def _send_nav2_goal_internal(self):
         station = self.stations[self.station_index]
         x, y, yaw = station.approach_pose
 
@@ -270,12 +291,18 @@ class WaypointManager(Node):
         if not self.nav2_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
                 f'Nav2 액션 서버 응답 없음, {GOAL_RETRY_DELAY_SEC}초 후 재시도')
-            self._schedule_retry(GOAL_RETRY_DELAY_SEC, self.send_next_nav2_goal)
+            self._schedule_retry(GOAL_RETRY_DELAY_SEC, self._retry_same_goal)
             return
 
         send_future = self.nav2_client.send_goal_async(goal_msg)
         send_future.add_done_callback(
             lambda future, seq=my_seq: self.nav2_goal_response_callback(future, seq))
+
+    def _retry_same_goal(self):
+        """실패한 목표를 실패 카운터는 유지한 채로 재전송.
+        send_next_nav2_goal()은 카운터를 리셋하므로 재시도 경로에서는 쓰지 않는다."""
+        self._cancel_retry_timer()
+        self._send_nav2_goal_internal()
 
     def nav2_goal_response_callback(self, future, seq):
         if seq != self._goal_seq:
@@ -284,7 +311,7 @@ class WaypointManager(Node):
         if not goal_handle.accepted:
             self.get_logger().warn(
                 f'Nav2 목표 거부됨, {GOAL_RETRY_DELAY_SEC}초 후 재시도')
-            self._schedule_retry(GOAL_RETRY_DELAY_SEC, self.send_next_nav2_goal)
+            self._schedule_retry(GOAL_RETRY_DELAY_SEC, self._retry_same_goal)
             return
         self.current_goal_handle = goal_handle
         result_future = goal_handle.get_result_async()
@@ -301,6 +328,25 @@ class WaypointManager(Node):
         # 모드로 넘어간 뒤에 advance_to_next_station이 다시 불려서 스테이션이 씹힐 수 있음.
 
         station = self.stations[self.station_index]
+        result = future.result()
+
+        if result.status != GoalStatus.STATUS_SUCCEEDED:
+            self._nav2_fail_count += 1
+            self.get_logger().error(
+                f'[{station.name}] Nav2 목표 실패 (status={result.status}), '
+                f'{self._nav2_fail_count}/{NAV2_MAX_RETRIES}회')
+
+            if self._nav2_fail_count >= NAV2_MAX_RETRIES:
+                self.get_logger().error(
+                    f'[{station.name}] Nav2 목표 {NAV2_MAX_RETRIES}회 연속 실패, '
+                    f'재시도 포기하고 정지')
+                self.mode = 'ERROR'
+                self.cmd_pub.publish(Twist())
+                return
+
+            self._schedule_retry(GOAL_RETRY_DELAY_SEC, self._retry_same_goal)
+            return
+
         self.get_logger().info(f'[{station.name}] Nav2 도착 완료')
 
         if station.docking_waypoints:
@@ -397,6 +443,12 @@ class WaypointManager(Node):
             if elapsed >= station.wait_seconds:
                 self.get_logger().info(f'[{station.name}] 대기 종료')
                 self.advance_to_next_station()
+
+        elif self.mode == 'ERROR':
+            # Nav2 목표가 NAV2_MAX_RETRIES회 연속 실패해서 재시도 포기하고 정지한 상태.
+            # 계속 정지 명령만 유지, 별도 자동 복구 없음 (사람 개입 필요).
+            self.cmd_pub.publish(Twist())
+            return
 
 
 def main():
