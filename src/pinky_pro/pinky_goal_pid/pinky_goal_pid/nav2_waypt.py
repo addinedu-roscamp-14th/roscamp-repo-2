@@ -143,32 +143,35 @@ class WaypointManager(Node):
         self.current_ang_vel = 0.0
 
         self.stations = [
-            Station('approach_tire_stop_1', approach_pose=(1.288, 0.488, -1.569),
+            Station('approach_tire_stop_1', approach_pose=(1.288, 0.495, -1.569),
                     docking_waypoints=[
                         (1.288, 0.488, 3.135, 'ROTATE'),
-                        (1.088, 0.488, 3.135, 'MOVE_FORWARD'),
+                        (1.075, 0.488, 3.135, 'MOVE_FORWARD'),
                     ],
-                    wait_seconds=4.0),
-            Station('approach_tire_stop_2', approach_pose=(0.492, 0.468, -2.631),
+                    wait_seconds=5.0),
+            Station('approach_tire_stop_2', approach_pose=(0.492, 0.467, -2.631),
                     docking_waypoints=[
-                        (0.302, 0.468, 3.135, 'MOVE_FORWARD'),
+                        (0.285, 0.485, 3.135, 'MOVE_FORWARD'),
                     ],
-                    wait_seconds=4.0),
-            Station('approach_tire_stop_3', approach_pose=(0.302, 0.468, 3.135),
+                    wait_seconds=5.0),
+            Station('approach_tire_stop_3', approach_pose=(0.282, 0.485, 3.135),
                     docking_waypoints=[
-                        (0.131, 0.468, 3.135, 'MOVE_FORWARD'),
-                        (0.131, 0.468, -1.569, 'ROTATE'),
-                        (0.131, 0.035, -1.569, 'MOVE_FORWARD'),
+                        (0.122, 0.468, 3.135, 'MOVE_FORWARD'),
+                        (0.136, 0.468, -1.569, 'ROTATE'),
+                        (0.136, 0.035, -1.569, 'MOVE_FORWARD'),
+                        (0.136, 0.035, -0.003, 'ROTATE'),
+                        (0.773, 0.035, -0.003, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=0.0),
-            Station('return_to_start_via', approach_pose=(1.111, 0.222, 0.111), docking_waypoints=None, wait_seconds=0.0),
+            Station('return_to_start_via', approach_pose=(1.115, 0.222, 0.111), docking_waypoints=None, wait_seconds=0.0),
 
-            Station('return_to_start', approach_pose=(1.598, 0.081, 0.222),
+            Station('return_to_start', approach_pose=(1.325, 0.075, 0.222),
                     docking_waypoints=[
-                        (1.598, 0.081, -3.135, 'MOVE_DIAGONAL'),
-                        (1.598, 0.081, -3.135, 'ROTATE'),
+                        (1.325, 0.075, -0.658, 'MOVE_DIAGONAL'),
+                        (1.325, 0.075, -3.135, 'ROTATE'),
+                        (1.593, 0.075, -3.135,'MOVE_BACKWARD'),
                     ],
-                    wait_seconds=4.0),
+                    wait_seconds=5.0),
         ]
 
         self.station_index = 0
