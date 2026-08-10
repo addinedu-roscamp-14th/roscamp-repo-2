@@ -30,8 +30,8 @@ amcl:
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 1.0
-    update_min_a: 0.02
-    update_min_d: 0.03
+    update_min_a: 0.015
+    update_min_d: 0.015
     z_hit: 0.5
     z_max: 0.05
     z_rand: 0.5
@@ -115,7 +115,7 @@ controller_server:
 
       # 목적지 접근 시 감속
       approach_velocity_scaling_dist: 0.5    # [m] 목표 지점까지 이 거리만큼 남았을 때부터 서서히 감속
-      min_approach_linear_velocity: 0.04     # [m/s] 목표 지점 근처에서 속도를 줄이더라도 이 속도 밑으론 안 내림
+      min_approach_linear_velocity: 0.015     # [m/s] 목표 지점 근처에서 속도를 줄이더라도 이 속도 밑으론 안 내림
 
       # 안전 및 충돌 방지
       use_collision_detection: true          # 현재 위치부터 주시점(Lookahead)까지 충돌 여부 미리 검사
@@ -159,7 +159,7 @@ controller_server:
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
       stateful: true
-      xy_goal_tolerance: 0.02                    # [m] 목표 지점 반경 0.01m 안에 들어오면 도착 인정
+      xy_goal_tolerance: 0.01                    # [m] 목표 지점 반경 0.01m 안에 들어오면 도착 인정
       yaw_goal_tolerance: 3.15                   # [rad] 목표 각도 오차 약 14도 이내면 올바르게 본 것으로 인정
 
     # ==========================================================
@@ -186,7 +186,7 @@ local_costmap:
       height: 3
       resolution: 0.05
       #robot_radius: 0.22
-      footprint: '[[0.13, 0.06], [0.13, -0.06], [-0.13, -0.06], [-0.13, 0.06]]'
+      footprint: '[[0.13, 0.06], [0.13, -0.06], [-0.27, -0.06], [-0.27, 0.06]]'
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -226,7 +226,7 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_footprint
       #robot_radius: 0.22
-      footprint: '[[0.13, 0.06], [0.13, -0.06], [-0.13, -0.06], [-0.13, 0.06]]'
+      footprint: '[[0.13, 0.06], [0.13, -0.06], [-0.27, -0.06], [-0.27, 0.06]]'
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]

@@ -63,7 +63,7 @@ DOCKING_PARAMS = {
     'goal_tolerance': 0.01,
     'yaw_tolerance': 0.015,
     'min_ang_vel': 0.1,
-    'min_lin_vel': 0.008,
+    'min_lin_vel': 0.01,
     'move_yaw_correction_gain': 0.3,
     'move_yaw_correction_limit': 0.0087,
     'move_yaw_deadzone_deg': 0.5,
@@ -143,38 +143,27 @@ class WaypointManager(Node):
         self.current_ang_vel = 0.0
 
         self.stations = [
-            Station('approach_tire_stop_1', approach_pose=(1.508, 0.335, 3.135),
+            Station('approach_tire_stop_1', approach_pose=(1.288, 0.488, -1.569),
                     docking_waypoints=[
-                        (1.508, 0.335, -1.569, 'ROTATE'),
-                        (1.508, 0.488, -1.569, 'MOVE_BACKWARD'),
+                        (1.288, 0.488, 3.135, 'ROTATE'),
+                        (1.088, 0.488, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=4.0),
-            Station('approach_tire_stop_2', approach_pose=(1.508, 0.488, -1.569),
+            Station('approach_tire_stop_2', approach_pose=(0.492, 0.468, -2.631),
                     docking_waypoints=[
-                        (1.508, 0.488, 3.135, 'ROTATE'),
-                        (1.098, 0.488, 3.135, 'MOVE_FORWARD'),
+                        (0.302, 0.468, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=4.0),
-            Station('approach_tire_stop_3', approach_pose=(0.492, 0.463, -2.631),
+            Station('approach_tire_stop_3', approach_pose=(0.302, 0.468, 3.135),
                     docking_waypoints=[
-                        (0.302, 0.463, 3.135, 'MOVE_FORWARD'),
-                    ],
-                    wait_seconds=4.0),
-            Station('approach_tire_stop_4', approach_pose=(0.302, 0.463, 3.135),
-                    docking_waypoints=[
-                        (0.131, 0.463, 3.135, 'MOVE_FORWARD'),
-                        (0.131, 0.463, -1.569, 'ROTATE'),
+                        (0.131, 0.468, 3.135, 'MOVE_FORWARD'),
+                        (0.131, 0.468, -1.569, 'ROTATE'),
                         (0.131, 0.035, -1.569, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=0.0),
-            # Station('approach_tire_stop_test', approach_pose=(0.143, 0.035, -2.831),
-                    # docking_waypoints=[
-                        # (0.143, 0.035, -1.565, 'MOVE_FORWARD'),
-                    # ],
-                    # wait_seconds=3.0),
             Station('return_to_start_via', approach_pose=(1.111, 0.222, 0.111), docking_waypoints=None, wait_seconds=0.0),
 
-            Station('return_to_start', approach_pose=(1.592, 0.081, 0.222),
+            Station('return_to_start', approach_pose=(1.598, 0.081, 0.222),
                     docking_waypoints=[
                         (1.598, 0.081, -3.135, 'MOVE_DIAGONAL'),
                         (1.598, 0.081, -3.135, 'ROTATE'),
