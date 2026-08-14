@@ -154,7 +154,7 @@ class WaypointManager(Node):
                         (0.285, 0.485, 3.135, 'MOVE_FORWARD'),
                     ],
                     wait_seconds=5.0),
-            Station('approach_tire_stop_3', approach_pose=(0.282, 0.485, 3.135),
+            Station('approach_tire_stop_3', approach_pose=(0.282, 0.475, 3.135),
                     docking_waypoints=[
                         (0.122, 0.468, 3.135, 'MOVE_FORWARD'),
                         (0.136, 0.468, -1.569, 'ROTATE'),
