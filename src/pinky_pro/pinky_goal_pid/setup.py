@@ -30,6 +30,7 @@ setup(
         'rpt_pd = pinky_goal_pid.rpt_pd:main',
         'nav2_waypt = pinky_goal_pid.nav2_waypt:main',
         'nav2_diagonal = pinky_goal_pid.nav2_diagonal:main',
+        'nav2_waypt2 = pinky_goal_pid.nav2_waypt2:main',
 
     ],
 },

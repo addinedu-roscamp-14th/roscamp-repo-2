@@ -17,7 +17,7 @@ amcl:
     laser_min_range: -1.0
     laser_model_type: "likelihood_field"
     max_beams: 60
-    max_particles: 1500
+    max_particles: 2000
     min_particles: 500
     odom_frame_id: "odom"
     pf_err: 0.05
@@ -37,12 +37,12 @@ amcl:
     z_rand: 0.2
     z_short: 0.05
     scan_topic: scan
-    set_initial_pose: false
-    # initial_pose:
-      # x: 1.5425
-      # y: 0.0810
-      # z: 0.0
-      # yaw: -3.138
+    set_initial_pose: true
+    initial_pose:
+      x: -0.03
+      y: -0.03
+      z: 0.0
+      yaw: -0.03
 
 bt_navigator:
   ros__parameters:
