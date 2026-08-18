@@ -11,7 +11,7 @@ ros2 launch pinky_bringup bringup_robot.launch.xml
 2. Nav2 내비게이션 스택 실행
 ```bash
 ros2 launch pinky_navigation bringup_launch.xml \
-    map:=/home/pinky/roscamp-repo-2/src/pinky_pro/pinky_goal_pid/map_4.yaml \
+    map:=/home/pinky/roscamp-repo-2/src/pinky_pro/pinky_goal_pid/map_5_1.yaml \
     use_sim_time:=False \
     use_composition:=True
 ```
@@ -20,7 +20,7 @@ ros2 launch pinky_navigation bringup_launch.xml \
 cd ~/roscamp-repo-2
 colcon build --packages-select pinky_goal_pid --symlink-install
 source ~/roscamp-repo-2/install/local_setup.bash
-ros2 run pinky_goal_pid nav2_waypt
+ros2 run pinky_goal_pid nav2_waypt2
 ```
 4. 개발 중 빌드 명령어
 ```bash
@@ -32,12 +32,18 @@ colcon build --packages-select pinky_navigation --symlink-install
 ## 개발 히스토리
 - v1: 고정 경로 PD 컨트롤러 (goal_pd.py)
 - v2: PD + 대각 이동 + 루프 모드 (rpt_pd.py)
-- v3 (현재): Nav2 + 커스텀 도킹 하이브리드 (nav2_waypt.py, dock_control.py)
+- v3: Nav2 + 커스텀 도킹 하이브리드 (nav2_waypt.py, dock_control.py)
   - 도킹 중 라이다 기반 장애물 정지-재개 로직 반영 (MOVE_FORWARD/BACKWARD/DIAGONAL 공통 적용)
-  - crosstrack 보정 재설계 진행 중 (cross_nav2.py, 별도 파일로 분리 개발)
   - Nav2 목표 실패(status 미검증) 처리 로직 추가: 실패 시 최대 3회 재시도 후 ERROR 모드로 정지
   - 로봇 뒤쪽에 트렁크 장착으로 인한 footprint 변경 대응 (전장 확장, inflation_radius/footprint_padding 재조정)
   - 신규 고정 장애물 반영한 맵(map_4) 제작 및 적용
+- v4: Nav2 + 커스텀 도킹 하이브리드 (nav2_waypt.py, dock_control.py)
+  ...(기존 내용)...
+  - map_5_1 신규 SLAM 매핑 + KolourPaint 벽 경계 정리, AMCL 파라미터 튜닝
+    (alpha1~5: 0.1, sigma_hit: 0.1, max_particles: 2000)로 covariance std
+    3.85cm → 2.5cm 개선 
+  - nav2_waypt2.py: map_5_1 기준 스테이션 좌표 재측정 반영, 전체 스테이션
+    순회 테스트 통과
 
 ## 주요 설계 결정
 - Nav2는 장애물 회피 접근(느슨한 tolerance)만 담당, 정밀 도킹은 별도 상태머신이 담당
@@ -55,11 +61,3 @@ colcon build --packages-select pinky_navigation --symlink-install
 - **좁은 통로 구간 주행**: return_to_start 인근 등 로봇 폭 대비 통로 여유가 매우 좁은 구간에서, footprint/inflation_radius를 정상 범위로 맞춘 상태에서도 여전히 회피 실패 가능성 있음 — 파라미터 튜닝으로 해결 가능한 범위인지, 좌표/경로 재설계가 필요한 물리적 한계인지 재확인 필요
 - **스테이션별 capture_radius**: 이전 스테이션 도킹 종료 지점과 다음 스테이션 approach_pose가 매우 가까운 경우, Nav2의 제자리 회전(use_rotate_to_heading)이 좁은 공간에서 충돌 반복을 유발하는 문제 확인. Station 클래스에 스테이션별 capture_radius 필드를 추가해 해당 구간만 Nav2 회전 정렬을 건너뛰고 즉시 도킹 컨트롤러로 넘기는 방향으로 별도 파일에서 구현 예정 (아직 미반영)
 - **IMU(BNO055) 통합**: `pinky_imu_bno055` 노드가 BNO055 리셋 폴링에서 행업 (SYS_STATUS=0x01, SYS_ERR=0x06, register map write error), I2C 100kHz로 낮춰도 미해결. `ekf.yaml`은 검증 전까지 gyro yaw rate만 사용하도록 보수적으로 구성
-
-## TODO
-- Station별 capture_radius 적용 (별도 파일에서 작업 예정)
-- Jetcobot 작업 시작 신호 연동 (현재 고정 시간 대기, PC1 → Pinky 명령 트리거 미구현)
-- Nav2 주행 중 장애물 회피 검증 (도킹 중 lidar 정지-재개는 완료, Nav2 구간은 별도 검증 필요)
-- 좁은 통로 구간(return_to_start 인근) 경로/좌표 재설계 검토
-- 로깅 레벨(log_level) info보다 낮춰서 부담 완화
-- 불필요한 노드 정리

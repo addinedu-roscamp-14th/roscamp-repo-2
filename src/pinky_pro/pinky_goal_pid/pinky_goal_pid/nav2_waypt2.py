@@ -163,11 +163,11 @@ class WaypointManager(Node):
                     (0.9738, 0.0289, 3.1231, 'MOVE_FORWARD'),
                 ],
                 wait_seconds=0.0),
-            Station('return_to_start_via', approach_pose=(0.4774, -0.0914, -2.8615), docking_waypoints=None, wait_seconds=0.0),
+            Station('return_to_start_via', approach_pose=(0.4574, -0.1194, -2.8615), docking_waypoints=None, wait_seconds=0.0),
 
             Station('return_to_start', approach_pose=(0.1381, -0.0245, 1.966),  # 기존 값 유지
                 docking_waypoints=[
-                    (0.1381, -0.0245, 1.9660, 'MOVE_DIAGONAL'),
+                    (0.1381, -0.0245, 1.966, 'MOVE_DIAGONAL'),
                     (0.1588, -0.0213, 0.0059, 'ROTATE'),
                     (-0.0249, -0.0221, -0.0043, 'MOVE_BACKWARD'),
                 ],
