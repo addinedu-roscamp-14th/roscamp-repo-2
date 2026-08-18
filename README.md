@@ -2,7 +2,7 @@
 0. SSH 접속 및 환경 설정
 ```bash
 ssh pinky@192.168.4.1
-source ~/pinky_pro/install/local_setup.bash
+source ~/roscamp-repo-2/install/local_setup.bash
 ```
 1. 로봇 하드웨어 구동
 ```bash
