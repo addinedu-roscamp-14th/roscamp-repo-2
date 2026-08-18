@@ -38,7 +38,6 @@ colcon build --packages-select pinky_navigation --symlink-install
   - 로봇 뒤쪽에 트렁크 장착으로 인한 footprint 변경 대응 (전장 확장, inflation_radius/footprint_padding 재조정)
   - 신규 고정 장애물 반영한 맵(map_4) 제작 및 적용
 - v4: Nav2 + 커스텀 도킹 하이브리드 (nav2_waypt.py, dock_control.py)
-  ...(기존 내용)...
   - map_5_1 신규 SLAM 매핑 + KolourPaint 벽 경계 정리, AMCL 파라미터 튜닝
     (alpha1~5: 0.1, sigma_hit: 0.1, max_particles: 2000)로 covariance std
     3.85cm → 2.5cm 개선 
