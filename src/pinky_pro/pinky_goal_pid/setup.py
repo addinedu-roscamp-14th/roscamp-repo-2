@@ -24,14 +24,7 @@ setup(
     },
     entry_points={
     'console_scripts': [
-        'goal_pid = pinky_goal_pid.goal_pid:main',
-        'goal_pd = pinky_goal_pid.goal_pd:main',
-        'goal_pid_curve = pinky_goal_pid.goal_pid_curve:main',
-        'rpt_pd = pinky_goal_pid.rpt_pd:main',
-        'nav2_waypt = pinky_goal_pid.nav2_waypt:main',
-        'nav2_diagonal = pinky_goal_pid.nav2_diagonal:main',
         'nav2_waypt2 = pinky_goal_pid.nav2_waypt2:main',
-
     ],
 },
 )

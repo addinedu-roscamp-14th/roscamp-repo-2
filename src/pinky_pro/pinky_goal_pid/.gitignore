@@ -2,3 +2,9 @@ map_3.pgm
 map_3.yaml
 map_4.pgm
 map_4.yaml
+pinky_goal_pid/goal_pd.py
+pinky_goal_pid/goal_pid.py
+pinky_goal_pid/goal_pid_curve.py
+pinky_goal_pid/nav2_diagonal.py
+pinky_goal_pid/nav2_waypt.py
+pinky_goal_pid/rpt_pd.py
