@@ -1,0 +1,17 @@
+left_arm:
+  host: "192.168.0.115"
+  port: 5000
+  connect_timeout_sec: 3.0
+  command_timeout_sec: 180.0
+
+right_arm:
+  host: "192.168.0.112"
+  port: 5001
+  connect_timeout_sec: 3.0
+  command_timeout_sec: 180.0
+
+vision_pc:
+  host: "192.168.0.81"
+  port: 6000
+  connect_timeout_sec: 3.0
+  request_timeout_sec: 30.0

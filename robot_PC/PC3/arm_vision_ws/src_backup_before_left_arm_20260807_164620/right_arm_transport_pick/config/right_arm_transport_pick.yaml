@@ -1,0 +1,29 @@
+right_arm_transport_pick:
+  ros__parameters:
+    robot_host: "192.168.0.112"
+    robot_port: 5001
+    connect_timeout_sec: 3.0
+    command_timeout_sec: 30.0
+    camera_device: "/dev/video4"
+    camera_width: 640
+    camera_height: 480
+    camera_fps: 30
+    camera_calibration_file: "/home/soo/robot_PC/arm_vision_ws/src/right_arm_transport_pick/config/calibration/right/camera_calibration.npz"
+    handeye_file: "/home/soo/robot_PC/arm_vision_ws/src/right_arm_transport_pick/config/calibration/right/handeye_calibration.npz"
+    slot_registration_file: "/home/soo/robot_PC/arm_vision_ws/src/right_arm_transport_pick/config/calibration/right/slot_registration.json"
+    marker_length_m: 0.030
+    target_id: 0
+    dictionary_id: 0
+    stable_buffer_size: 12
+    min_stable_samples: 8
+    max_translation_spread_mm: 3.0
+    max_rotation_spread_deg: 2.0
+    max_reprojection_error_px: 2.5
+    slot_id: 1
+    preview_only: true
+    allow_robot_motion: false
+    allow_gripper_close: false
+    marker_acquire_timeout_sec: 10.0
+    preview_robot_coords: [62.7, -48.9, 298.0, -143.33, -23.3, 36.6]
+    position_limits_mm: [-350.0, 350.0, 0.0, 500.0]
+    rotation_limits_deg: [-180.0, 180.0]

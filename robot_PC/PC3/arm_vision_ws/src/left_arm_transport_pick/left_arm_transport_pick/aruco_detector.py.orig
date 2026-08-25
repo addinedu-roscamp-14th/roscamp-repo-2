@@ -1,0 +1,375 @@
+"""Left gripper camera + ArUco visualization + pose stability."""
+from __future__ import annotations
+
+from collections import deque
+from pathlib import Path
+import math
+import time
+
+import cv2
+import cv2.aruco as aruco
+import numpy as np
+
+
+def load_camera_calibration(path):
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"camera calibration file is missing: {path}")
+
+    data = np.load(path, allow_pickle=False)
+    required = {"camera_matrix", "dist_coeffs"}
+    missing = required.difference(data.files)
+    if missing:
+        raise ValueError(f"camera calibration keys missing: {sorted(missing)}")
+
+    matrix = np.asarray(data["camera_matrix"], dtype=np.float64).reshape(3, 3)
+    distortion = np.asarray(data["dist_coeffs"], dtype=np.float64)
+    return matrix, distortion, data
+
+
+def make_transform(rotation, translation):
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] = np.asarray(rotation, dtype=np.float64).reshape(3, 3)
+    transform[:3, 3] = np.asarray(translation, dtype=np.float64).reshape(3)
+    return transform
+
+
+def average_rotation(rotations):
+    matrix = np.mean(np.stack(rotations, axis=0), axis=0)
+    u, _, vt = np.linalg.svd(matrix)
+    result = u @ vt
+    if np.linalg.det(result) < 0:
+        u[:, -1] *= -1
+        result = u @ vt
+    return result
+
+
+def rotation_difference_deg(rotation_a, rotation_b):
+    delta = rotation_a.T @ rotation_b
+    value = float(np.clip((np.trace(delta) - 1.0) / 2.0, -1.0, 1.0))
+    return math.degrees(math.acos(value))
+
+
+class LeftArmArucoCamera:
+    WINDOW_NAME = "Slot Approach and Grasp Test"
+
+    def __init__(self, device, calibration_file, **config):
+        self.camera_matrix, self.distortion, data = load_camera_calibration(
+            calibration_file
+        )
+        self.calibration_file = str(calibration_file)
+
+        self.width = int(config.get("camera_width", 640))
+        self.height = int(config.get("camera_height", 480))
+        self.fps = int(config.get("camera_fps", 30))
+        self.marker_length_m = float(config.get("marker_length_m", 0.030))
+        self.target_id = (
+            int(config["target_id"])
+            if config.get("target_id") is not None
+            else None
+        )
+        self.dictionary_id = int(
+            config.get("dictionary_id", aruco.DICT_4X4_50)
+        )
+        self.buffer_size = int(config.get("stable_buffer_size", 12))
+        self.min_samples = int(config.get("min_stable_samples", 10))
+        self.max_translation_spread_mm = float(
+            config.get("max_translation_spread_mm", 3.0)
+        )
+        self.max_rotation_spread_deg = float(
+            config.get("max_rotation_spread_deg", 2.0)
+        )
+        self.max_reprojection_error_px = float(
+            config.get("max_reprojection_error_px", 4.0)
+        )
+        self.lost_limit = int(config.get("lost_limit", 5))
+
+        self.dictionary = aruco.getPredefinedDictionary(self.dictionary_id)
+        params = aruco.DetectorParameters()
+        params.adaptiveThreshWinSizeMin = 3
+        params.adaptiveThreshWinSizeMax = 53
+        params.adaptiveThreshWinSizeStep = 10
+        params.minMarkerPerimeterRate = 0.02
+        if hasattr(aruco, "CORNER_REFINE_SUBPIX"):
+            params.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        self.params = params
+        self.detector = (
+            aruco.ArucoDetector(self.dictionary, self.params)
+            if hasattr(aruco, "ArucoDetector")
+            else None
+        )
+
+        self.pose_buffer = deque(maxlen=self.buffer_size)
+        self.lost_count = 0
+        self.latest = None
+
+        self.capture = cv2.VideoCapture(str(device), cv2.CAP_V4L2)
+        self.capture.set(
+            cv2.CAP_PROP_FOURCC,
+            cv2.VideoWriter_fourcc(*"MJPG"),
+        )
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.capture.set(cv2.CAP_PROP_FPS, self.fps)
+
+        fourcc_value = int(self.capture.get(cv2.CAP_PROP_FOURCC))
+        fourcc = "".join(chr((fourcc_value >> (8 * index)) & 0xFF) for index in range(4))
+        print(
+            "left gripper camera opened: "
+            f"device={device} "
+            f"isOpened={self.capture.isOpened()} "
+            f"FOURCC={fourcc!r} "
+            f"width={self.capture.get(cv2.CAP_PROP_FRAME_WIDTH)} "
+            f"height={self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT)} "
+            f"fps={self.capture.get(cv2.CAP_PROP_FPS)}"
+        )
+
+        if not self.capture.isOpened():
+            raise RuntimeError(f"left gripper camera cannot be opened: {device}")
+
+        time.sleep(1.0)
+        warmup_frame_available = False
+        for _ in range(10):
+            ok, frame = self.capture.read()
+            if ok and frame is not None:
+                warmup_frame_available = True
+        if not warmup_frame_available:
+            raise RuntimeError(
+                f"left gripper camera warm-up failed: no valid frame from {device}"
+            )
+
+    def reset(self):
+        self.pose_buffer.clear()
+        self.lost_count = 0
+
+    def _detect_markers(self, gray):
+        if self.detector is not None:
+            return self.detector.detectMarkers(gray)
+        return aruco.detectMarkers(
+            gray,
+            self.dictionary,
+            parameters=self.params,
+        )
+
+    def _marker_object_points(self):
+        half = self.marker_length_m / 2.0
+        return np.array(
+            [
+                [-half, half, 0.0],
+                [half, half, 0.0],
+                [half, -half, 0.0],
+                [-half, -half, 0.0],
+            ],
+            dtype=np.float64,
+        )
+
+    def _estimate_pose(self, corners):
+        image_points = np.asarray(corners, dtype=np.float64).reshape(4, 2)
+        object_points = self._marker_object_points()
+        flag = (
+            cv2.SOLVEPNP_IPPE_SQUARE
+            if hasattr(cv2, "SOLVEPNP_IPPE_SQUARE")
+            else cv2.SOLVEPNP_ITERATIVE
+        )
+
+        ok, rvec, tvec = cv2.solvePnP(
+            object_points,
+            image_points,
+            self.camera_matrix,
+            self.distortion,
+            flags=flag,
+        )
+        if not ok:
+            return None
+
+        if hasattr(cv2, "solvePnPRefineLM"):
+            try:
+                rvec, tvec = cv2.solvePnPRefineLM(
+                    object_points,
+                    image_points,
+                    self.camera_matrix,
+                    self.distortion,
+                    rvec,
+                    tvec,
+                )
+            except cv2.error:
+                pass
+
+        projected, _ = cv2.projectPoints(
+            object_points,
+            rvec,
+            tvec,
+            self.camera_matrix,
+            self.distortion,
+        )
+        projected = np.asarray(projected, dtype=np.float64).reshape(4, 2)
+        error_px = float(
+            np.sqrt(
+                np.mean(
+                    np.sum((projected - image_points) ** 2, axis=1)
+                )
+            )
+        )
+
+        rotation, _ = cv2.Rodrigues(rvec)
+        translation = np.asarray(tvec, dtype=np.float64).reshape(3)
+
+        if not np.all(np.isfinite(translation)) or translation[2] <= 0:
+            return None
+
+        return {
+            "rotation": rotation,
+            "translation": translation,
+            "rvec": np.asarray(rvec, dtype=np.float64).reshape(3),
+            "error_px": error_px,
+        }
+
+    def _stable_pose(self):
+        if len(self.pose_buffer) < self.min_samples:
+            return None
+
+        records = list(self.pose_buffer)[-self.min_samples:]
+        rotations = [item[0] for item in records]
+        translations = np.stack([item[1] for item in records], axis=0)
+        errors = np.asarray([item[2] for item in records], dtype=np.float64)
+
+        rotation_mean = average_rotation(rotations)
+        translation_median = np.median(translations, axis=0)
+
+        translation_spread_mm = float(
+            np.sqrt(
+                np.mean(
+                    np.sum(
+                        (translations - translation_median) ** 2,
+                        axis=1,
+                    )
+                )
+            )
+            * 1000.0
+        )
+
+        rotation_spread_deg = float(
+            np.sqrt(
+                np.mean(
+                    [
+                        rotation_difference_deg(rotation_mean, rotation) ** 2
+                        for rotation in rotations
+                    ]
+                )
+            )
+        )
+
+        reprojection_error_px = float(np.median(errors))
+
+        if (
+            translation_spread_mm > self.max_translation_spread_mm
+            or rotation_spread_deg > self.max_rotation_spread_deg
+            or reprojection_error_px > self.max_reprojection_error_px
+        ):
+            return None
+
+        return {
+            "transform": make_transform(rotation_mean, translation_median),
+            "rotation": rotation_mean,
+            "translation": translation_median,
+            "translation_spread_mm": translation_spread_mm,
+            "rotation_spread_deg": rotation_spread_deg,
+            "reprojection_error_px": reprojection_error_px,
+        }
+
+    def read(self, accept_for_stability=True):
+        ok, frame = self.capture.read()
+        if not ok:
+            raise RuntimeError("right gripper camera frame unavailable")
+
+        display = frame.copy()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        corners, ids, rejected = self._detect_markers(gray)
+
+        if ids is not None and len(ids) > 0:
+            aruco.drawDetectedMarkers(display, corners, ids)
+
+        marker_index = None
+        marker_id = None
+        if ids is not None and len(ids) > 0:
+            flat_ids = np.asarray(ids, dtype=np.int32).reshape(-1)
+            if self.target_id is None:
+                marker_index = 0
+            else:
+                matches = np.where(flat_ids == self.target_id)[0]
+                if len(matches) > 0:
+                    marker_index = int(matches[0])
+            if marker_index is not None:
+                marker_id = int(flat_ids[marker_index])
+
+        pose = None
+        current_error_px = None
+
+        if marker_index is not None:
+            self.lost_count = 0
+            pose = self._estimate_pose(corners[marker_index])
+
+            if pose is not None:
+                current_error_px = float(pose["error_px"])
+
+                if (
+                    accept_for_stability
+                    and current_error_px <= self.max_reprojection_error_px
+                ):
+                    self.pose_buffer.append(
+                        (
+                            pose["rotation"],
+                            pose["translation"],
+                            current_error_px,
+                        )
+                    )
+
+                try:
+                    cv2.drawFrameAxes(
+                        display,
+                        self.camera_matrix,
+                        self.distortion,
+                        pose["rvec"].reshape(3, 1),
+                        pose["translation"].reshape(3, 1),
+                        self.marker_length_m * 0.7,
+                        2,
+                    )
+                except cv2.error:
+                    pass
+        else:
+            self.lost_count += 1
+            if self.lost_count > self.lost_limit:
+                self.pose_buffer.clear()
+
+        stable = self._stable_pose()
+        self.latest = {
+            "frame": frame,
+            "display": display,
+            "marker_id": marker_id,
+            "current_error_px": current_error_px,
+            "stable": stable,
+            "stable_count": len(self.pose_buffer),
+            "corners": corners,
+            "ids": ids,
+            "rejected": rejected,
+        }
+        return self.latest
+
+    def acquire_stable(self, timeout_sec=10.0):
+        deadline = time.monotonic() + float(timeout_sec)
+        while time.monotonic() < deadline:
+            result = self.read()
+            if result["stable"] is not None:
+                return result["stable"]
+            cv2.waitKey(1)
+        raise TimeoutError("ArUco marker did not become stable before timeout")
+
+    def show(self, display):
+        cv2.imshow(self.WINDOW_NAME, display)
+
+    def close(self):
+        self.capture.release()
+        try:
+            cv2.destroyWindow(self.WINDOW_NAME)
+        except cv2.error:
+            pass

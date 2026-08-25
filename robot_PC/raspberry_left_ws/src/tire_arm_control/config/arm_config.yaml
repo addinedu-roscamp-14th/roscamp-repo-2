@@ -1,0 +1,14 @@
+arm_side: "left"
+robot_port: "/dev/ttyJETCOBOT"
+robot_baud: 1000000
+tcp_host: "0.0.0.0"
+tcp_port: 5000
+client_timeout_sec: 65.0
+motion_dir: "motions"
+default_coord_speed: 30
+move_timeout_sec: 30.0
+move_poll_interval_sec: 0.1
+position_tolerance_mm: 5.0
+rotation_tolerance_deg: 5.0
+gripper_open_value: 100
+gripper_close_value: 0

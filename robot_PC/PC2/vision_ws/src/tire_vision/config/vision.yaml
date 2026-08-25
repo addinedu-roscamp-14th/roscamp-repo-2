@@ -1,0 +1,59 @@
+mock_mode: false
+tcp_host: "0.0.0.0"
+tcp_port: 6000
+
+model_path: "models/tire_best.pt"
+imgsz: 640
+conf_threshold: 0.5
+device: 0
+
+# Tire mask -> yellow marker -> normalized radial gap.
+yellow_lower: [15, 40, 60]
+yellow_upper: [42, 255, 255]
+min_marker_area: 5
+max_marker_area: 500
+marker_roi_scale: 1.15
+no_tire_reset_frames: 3
+
+bad_class_name: "bad_tire"
+good_class_name: "good_tire"
+
+detection_window_size: 5
+required_stable_count: 3
+minimum_average_confidence: 0.5
+detect_timeout_sec: 10.0
+detect_loop_sleep_sec: 0.01
+max_detection_retries: 3
+
+left_camera:
+  index: 2
+  width: 640
+  height: 480
+  fps: 30
+  bad_max_ratio: 0.28
+  good_min_ratio: 0.32
+  max_ratio_std: 0.03
+  marker_hold_frames: 5
+  marker_recheck_frames: 8
+  window_size: 15
+  min_valid_frames: 10
+
+right_camera:
+  index: 4
+  width: 640
+  height: 480
+  fps: 30
+  bad_max_gap_px: 10.5
+  good_min_gap_px: 11.5
+  bad_max_ratio: 0.25
+  good_min_ratio: 0.27
+  max_ratio_std: 0.035
+  marker_hold_frames: 5
+  marker_recheck_frames: 8
+  window_size: 15
+  min_valid_frames: 10
+
+mock_left_class_name: "bad_tire"
+mock_left_confidence: 0.91
+mock_right_class_name: "good_tire"
+mock_right_confidence: 0.88

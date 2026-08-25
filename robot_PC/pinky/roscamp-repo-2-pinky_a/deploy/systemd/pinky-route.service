@@ -1,0 +1,16 @@
+[Unit]
+Description=Pinky command-driven waypoint TCP route server
+Requires=pinky-navigation.service
+After=pinky-navigation.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pinky
+WorkingDirectory=/home/pinky/roscamp-repo-2-pinky_a
+ExecStart=/bin/bash -lc 'source /opt/ros/jazzy/setup.bash && source /home/pinky/roscamp-repo-2-pinky_a/install/setup.bash && exec ros2 run pinky_goal_pid pinky_tcp_server --ros-args --params-file /home/pinky/roscamp-repo-2-pinky_a/install/pinky_goal_pid/share/pinky_goal_pid/config/pinky_tcp_server.yaml'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

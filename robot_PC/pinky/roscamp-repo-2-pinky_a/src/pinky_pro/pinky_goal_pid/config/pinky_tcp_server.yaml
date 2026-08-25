@@ -1,0 +1,7 @@
+pinky_tcp_route_server:
+  ros__parameters:
+    tcp_host: "0.0.0.0"
+    tcp_port: 7000
+    tcp_command_timeout_sec: 5.0
+    request_cache_size: 256
+    loop_mode: false

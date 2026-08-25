@@ -1,0 +1,67 @@
+{
+  "hand_eye_file": "/home/choiminjoon/handeye_dataset_v2/handeye_calibration.npz",
+  "validation_dir": "/home/choiminjoon/handeye_validation_v2/session_20260720_171409",
+  "validation_sample_count": 4,
+  "calibration_metadata": {
+    "method": "DANIILIDIS",
+    "translation_rms_mm": 1.3254173681656687,
+    "rotation_rms_deg": 0.17024177107368013,
+    "sample_count": 21
+  },
+  "metrics": {
+    "translation_rms_mm": 0.9856425867109914,
+    "translation_max_mm": 1.1196720616712608,
+    "rotation_rms_deg": 0.21674239529340358,
+    "rotation_max_deg": 0.26786803703070766
+  },
+  "project_acceptance_target": {
+    "translation_rms_mm_max": 3.0,
+    "translation_max_mm_max": 5.0,
+    "rotation_rms_deg_max": 0.5,
+    "rotation_max_deg_max": 1.0
+  },
+  "passed": true,
+  "center_base_target_translation_mm": [
+    -31.843221591996443,
+    365.0296441058958,
+    -41.567904746681954
+  ],
+  "rows": [
+    {
+      "sample": "sample_001.json",
+      "base_target_x_mm": -31.51422385562762,
+      "base_target_y_mm": 365.69047379878157,
+      "base_target_z_mm": -40.923978871220065,
+      "translation_error_mm": 0.9795794641705594,
+      "rotation_error_deg": 0.16963063044853258,
+      "reprojection_error_px": 1.4799753878323212
+    },
+    {
+      "sample": "sample_002.json",
+      "base_target_x_mm": -31.870450290104525,
+      "base_target_y_mm": 365.4304389099519,
+      "base_target_z_mm": -40.522779084989466,
+      "translation_error_mm": 1.1196720616712608,
+      "rotation_error_deg": 0.2261245560913368,
+      "reprojection_error_px": 1.2618765080532037
+    },
+    {
+      "sample": "sample_003.json",
+      "base_target_x_mm": -31.815992893888353,
+      "base_target_y_mm": 364.62884930183964,
+      "base_target_z_mm": -42.21183062214384,
+      "translation_error_mm": 0.7589587670278383,
+      "rotation_error_deg": 0.19039147237608298,
+      "reprojection_error_px": 1.4759672374932724
+    },
+    {
+      "sample": "sample_004.json",
+      "base_target_x_mm": -32.05392921449615,
+      "base_target_y_mm": 364.5994209116666,
+      "base_target_z_mm": -42.4991489002533,
+      "translation_error_mm": 1.0472370183454498,
+      "rotation_error_deg": 0.26786803703070766,
+      "reprojection_error_px": 1.4386674604843295
+    }
+  ]
+}

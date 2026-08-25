@@ -1,0 +1,16 @@
+[Unit]
+Description=Pinky Nav2 localization and navigation
+Requires=pinky-bringup.service
+After=pinky-bringup.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pinky
+WorkingDirectory=/home/pinky/roscamp-repo-2-pinky_a
+ExecStart=/bin/bash -lc 'source /opt/ros/jazzy/setup.bash && source /home/pinky/roscamp-repo-2-pinky_a/install/setup.bash && exec ros2 launch pinky_navigation bringup_launch.xml map:=/home/pinky/roscamp-repo-2-pinky_a/src/pinky_pro/pinky_goal_pid/map_4.yaml use_sim_time:=False use_composition:=True'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

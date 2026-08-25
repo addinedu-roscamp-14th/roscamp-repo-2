@@ -1,0 +1,8 @@
+robot_port: "/dev/ttyJETCOBOT"
+robot_baud: 1000000
+
+tcp_host: "0.0.0.0"
+tcp_port: 5000
+
+motion_dir: "motions"
+default_speed: 50

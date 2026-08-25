@@ -1,0 +1,20 @@
+left:
+  camera_device: ""  # REQUIRED: left gripper camera device
+  camera_calibration_file: "calibration/left/camera_calibration.npz"
+  handeye_file: "calibration/left/handeye_calibration.npz"
+  slot_registration_file: "calibration/left/slot_registration.json"
+  set_aruco_motion: "set_aruco"
+right:
+  camera_device: ""  # REQUIRED: right gripper camera device
+  camera_calibration_file: "calibration/right/camera_calibration.npz"
+  handeye_file: "calibration/right/handeye_calibration.npz"
+  slot_registration_file: "calibration/right/slot_registration.json"
+  set_aruco_motion: "set_aruco"
+common:
+  marker_length_m: 0.030
+  target_id: 0
+  stable_buffer_size: 12
+  min_stable_samples: 8
+  max_translation_spread_mm: 3.0
+  max_rotation_spread_deg: 2.0
+  max_reprojection_error_px: 2.5

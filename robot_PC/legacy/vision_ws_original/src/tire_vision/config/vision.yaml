@@ -1,0 +1,47 @@
+mock_mode: false
+tcp_host: "0.0.0.0"
+tcp_port: 6000
+
+model_path: "/home/seohyun/robot_PC/vision_ws/models/tire_best.pt"
+imgsz: 640
+conf_threshold: 0.5
+device: 0
+
+# Tire mask -> yellow marker -> normalized radial gap.
+yellow_lower: [15, 80, 80]
+yellow_upper: [40, 255, 255]
+min_marker_area: 5
+max_marker_area: 500
+
+# Left and right cameras keep independent ratio histories.
+ratio_window_size: 15
+ratio_min_valid_frames: 10
+bad_max_ratio: 0.23
+good_min_ratio: 0.30
+max_ratio_std: 0.01
+
+bad_class_name: "bad_tire"
+good_class_name: "good_tire"
+
+detection_window_size: 5
+required_stable_count: 3
+minimum_average_confidence: 0.5
+detect_timeout_sec: 10.0
+detect_loop_sleep_sec: 0.01
+
+left_camera:
+  index: 2
+  width: 640
+  height: 480
+  fps: 30
+
+right_camera:
+  index: 4
+  width: 640
+  height: 480
+  fps: 30
+
+mock_left_class_name: "bad_tire"
+mock_left_confidence: 0.91
+mock_right_class_name: "good_tire"
+mock_right_confidence: 0.88

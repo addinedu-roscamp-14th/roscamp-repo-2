@@ -1,0 +1,8 @@
+**/build/
+**/install/
+**/log/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+debug_frames/
+tire_marker_test.csv

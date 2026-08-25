@@ -1,0 +1,9 @@
+string operation
+int32 slot
+---
+bool success
+string message
+string side
+string operation
+int32 slot
+

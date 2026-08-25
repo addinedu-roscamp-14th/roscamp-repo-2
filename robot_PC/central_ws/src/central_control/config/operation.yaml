@@ -1,0 +1,15 @@
+operation:
+  manual_step: true
+  mock_arms: true
+  mock_vision: false
+
+commands:
+  health: "HELP"
+  set_camera: "SET_CAMERA"
+  remove_bad_tire: "REMOVE_BAD_TIRE"
+  set_aruco: "SET_ARUCO"
+  home: "HOME"
+  stop: "STOP"
+
+timeouts:
+  worker_shutdown_sec: 3.0

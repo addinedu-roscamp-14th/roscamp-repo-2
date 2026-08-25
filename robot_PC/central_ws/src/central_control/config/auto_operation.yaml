@@ -1,0 +1,50 @@
+operation:
+  auto_start: false
+  mock_arms: true
+  mock_vision: false
+  # Pinky route/transport-ready bypass only; ArUco arm services stay real.
+  mock_transport_operations: true
+  mock_aruco_transport_operations: false
+  mock_install_new_tire: false
+  require_arm_key: true
+  reset_required_after_complete: true
+  detection_max_retries: 3
+  detection_retry_delay_sec: 0.5
+
+transport_services:
+  left: "/left_arm/transport_task"
+  right: "/right_arm/transport_task"
+  ready: "/central/transport_ready"
+
+delays:
+  after_parking_sec: 1.0
+  after_set_camera_sec: 1.0
+  after_detection_sec: 0.5
+  after_opposite_help_sec: 1.0
+
+safety:
+  vehicle_motion_monitor_enabled: true
+  emergency_jitter_px: 12.0
+  emergency_speed_px_sec: 6.0
+  emergency_reference_displacement_px: 12.0
+  emergency_hold_sec: 0.35
+  detection_lost_emergency_sec: 1.0
+  send_stop_before_home: true
+  stop_to_home_delay_sec: 0.5
+  home_on_vehicle_motion: true
+  require_manual_reset: true
+
+commands:
+  set_camera: "SET_CAMERA"
+  help: "HELP"
+  remove_bad_tire: "REMOVE_BAD_TIRE"
+  set_aruco: "SET_ARUCO"
+  install_new_tire: "INSTALL_NEW_TIRE"
+  home: "HOME"
+  stop: "STOP"
+
+timeouts:
+  worker_shutdown_sec: 3.0
+  pinky_move_sec: 180.0
+  transport_service_wait_sec: 2.0
+  transport_service_sec: 120.0
