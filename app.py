@@ -121,8 +121,8 @@ if __name__ == '__main__':
     try:
         # main.py 서브 프로세스 실행
         fastapi_process = subprocess.Popen([sys.executable, "main.py"])
-        # Flask 서버 실행
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        # Flask 서버 실행 (포트 충돌 방지를 위해 use_reloader=False 적용)
+        app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     except KeyboardInterrupt:
         # 종료 시 서브 프로세스 종료 처리
         if fastapi_process:

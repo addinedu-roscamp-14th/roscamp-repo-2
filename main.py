@@ -13,7 +13,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 import uvicorn
 
-# 데이터베이스 초기화 (존 관련 사이클 타임 기록 제외, 충돌 알람 및 객체 로그만 유지)
+# 점선 렌더링 함수 추가
+def draw_dashed_line(img, pt1, pt2, color, thickness=1, gap=10):
+    dist = math.hypot(pt2[0] - pt1[0], pt2[1] - pt1[1])
+    if dist == 0: return
+    pts = []
+    for i in np.arange(0, dist, gap):
+        r = i / dist
+        x = int((pt1[0] * (1 - r) + pt2[0] * r) + 0.5)
+        y = int((pt1[1] * (1 - r) + pt2[1] * r) + 0.5)
+        pts.append((x, y))
+    for i in range(0, len(pts) - 1, 2):
+        cv2.line(img, pts[i], pts[i+1], color, thickness)
+
+# 데이터베이스 초기화
 def init_db():
     conn = sqlite3.connect("bev_data.db", check_same_thread=False)
     cursor = conn.cursor()
@@ -69,11 +82,22 @@ def run_ai_loop():
         print("경고: npy 파일이 존재하지 않음.")
         return
     
-    MODEL_PATH = "/home/chansik/Downloads/car_b_yolov8n_result/content/runs/detect/car_b_yolov8n_b16_p80/weights/best.pt"
+    MODEL_PATH = "best.pt"
     model = YOLO(MODEL_PATH)
     DEVICE = 0 if torch.cuda.is_available() else "cpu"
     
-    cap = cv2.VideoCapture(2)
+    # 카메라 인덱스 자동 탐색 (연결 오류 방지)
+    cap = None
+    for cam_idx in [2, 0, 1]:
+        temp_cap = cv2.VideoCapture(cam_idx)
+        if temp_cap.isOpened():
+            cap = temp_cap
+            break
+            
+    if cap is None or not cap.isOpened():
+        print("경고: 연결 가능한 카메라를 찾을 수 없음.")
+        return
+
     src = np.float32([[63, 103], [609, 85], [622, 357], [69, 376]])
     WIDTH, HEIGHT = 600, 400
     dst = np.float32([[0, 0], [WIDTH, 0], [WIDTH, HEIGHT], [0, HEIGHT]])
@@ -95,8 +119,8 @@ def run_ai_loop():
         undistorted = cv2.undistort(frame, cameraMatrix, distCoeffs)
         bev = cv2.warpPerspective(undistorted, matrix, (WIDTH, HEIGHT))
         
-        # half 파라미터 삭제 처리 (경고 문구 제거)
-        results = model.track(source=bev, device=DEVICE, conf=0.5, persist=True, imgsz=640, verbose=False)
+        # 트래킹 유지 및 탐지 신뢰도 하향(0.25) 복합 적용
+        results = model.track(source=bev, device=DEVICE, conf=0.25, persist=True, imgsz=640, verbose=False)
         
         frame_data = {"alerts": []}
         objects_info = []
@@ -107,7 +131,16 @@ def run_ai_loop():
                 box = boxes[i]
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 cls = int(box.cls[0])
-                label = model.names[cls]
+                
+                # 명칭 변경 로직
+                original_label = model.names[cls]
+                if original_label == "car_B":
+                    label = "[타이어 교체 차량]"
+                elif original_label == "tire_car":
+                    label = "[타이어 운송 차량]"
+                else:
+                    label = original_label
+                
                 track_id = int(box.id[0]) if box.id is not None else -1
                 
                 cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
@@ -119,12 +152,12 @@ def run_ai_loop():
                 cursor.execute("INSERT INTO object_logs (track_id, class_name, map_x, map_y) VALUES (?, ?, ?, ?)", 
                                (track_id, label, map_x, map_y))
                 
-                # 객체 위치 및 식별자 렌더링 (OpenCV)
-                color = (0, 0, 255) if "car" in label.lower() else (0, 255, 255)
+                # 색상 분리 및 렌더링
+                color = (0, 0, 255) if original_label == "car_B" else (0, 255, 0)
                 cv2.circle(bev, (cx, cy), 8, color, -1)
                 cv2.putText(bev, f"{label}[{track_id}]", (cx + 12, cy - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         
-        # 충돌 위험 판정 및 렌더링 (OpenCV)
+        # 충돌 판정 및 점선 렌더링
         y_offset = 30
         for i in range(len(objects_info)):
             for j in range(i + 1, len(objects_info)):
@@ -132,19 +165,21 @@ def run_ai_loop():
                 obj2 = objects_info[j]
                 dist = calculate_distance(obj1["map_x"], obj1["map_y"], obj2["map_x"], obj2["map_y"])
                 
-                if dist < 0.3:
+                # 충돌 감지 거리 0.15 기준
+                if dist < 0.15:
                     msg = f"충돌 위험! {obj1['class']}[{obj1['id']}] - {obj2['class']}[{obj2['id']}] 거리: {dist:.2f}m"
                     frame_data["alerts"].append({"msg": msg})
                     cursor.execute("INSERT INTO event_logs (event_type, message) VALUES (?, ?)", ("COLLISION_WARNING", msg))
                     
-                    cv2.line(bev, (obj1["px"], obj1["py"]), (obj2["px"], obj2["py"]), (0, 0, 255), 4)
+                    # 얇은 점선(두께 1, 간격 10) 렌더링
+                    draw_dashed_line(bev, (obj1["px"], obj1["py"]), (obj2["px"], obj2["py"]), (0, 0, 255), 1, 10)
                     cv2.putText(bev, msg, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                     y_offset += 25
         
         db_conn.commit()
         latest_data = frame_data
         
-        # JPEG 품질 70 압축 적용
+        # 화면 압축 및 전송
         ret_jpg, buffer = cv2.imencode('.jpg', bev, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
         if ret_jpg:
             latest_frame = buffer.tobytes()
@@ -159,7 +194,7 @@ def generate_video():
         if latest_frame:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + latest_frame + b'\r\n')
-        time.sleep(0.1) # 10 FPS 전송 제한 적용
+        time.sleep(0.1)
 
 @app.get("/video_feed")
 async def video_feed():
